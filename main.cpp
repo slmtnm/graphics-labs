@@ -8,14 +8,14 @@ LRESULT CALLBACK WndProc(
     _In_ LPARAM lParam
 ) {
     switch(msg) {
-        case WM_CLOSE:
-            DestroyWindow(hwnd);
+    case WM_CLOSE:
+        DestroyWindow(hwnd);
         break;
-        case WM_DESTROY:
-            PostQuitMessage(0);
+    case WM_DESTROY:
+        PostQuitMessage(0);
         break;
-        default:
-            return DefWindowProc(hwnd, msg, wParam, lParam);
+     default:
+        return DefWindowProc(hwnd, msg, wParam, lParam);
     }
     return 0;
 }
@@ -69,7 +69,7 @@ int WINAPI WinMain(
     if (!hWnd) {
         MessageBox(NULL,
             _T("Call to CreateWindow failed!"),
-            _T("Windows Desktop Guided Tour"),
+            _T("graphics-labs"),
             NULL);
         return 1;
     }
