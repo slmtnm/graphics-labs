@@ -1,21 +1,35 @@
 #include <windows.h>
 #include <tchar.h>
+#include <cstdio>
+#include <vector>
+#include <optional>
+#include <d3d11_1.h>
+#include <directxcolors.h>
+
+#include "graphics.h"
 
 LRESULT CALLBACK WndProc(
-    _In_ HWND hwnd,
+    _In_ HWND hWnd,
     _In_ UINT msg,
     _In_ WPARAM wParam,
     _In_ LPARAM lParam
 ) {
+    PAINTSTRUCT ps;
+    HDC hdc;
+
     switch(msg) {
+    case WM_PAINT:
+        hdc = BeginPaint(hWnd, &ps);
+        EndPaint(hWnd, &ps);
+        break;
     case WM_CLOSE:
-        DestroyWindow(hwnd);
+        DestroyWindow(hWnd);
         break;
     case WM_DESTROY:
         PostQuitMessage(0);
         break;
      default:
-        return DefWindowProc(hwnd, msg, wParam, lParam);
+        return DefWindowProc(hWnd, msg, wParam, lParam);
     }
     return 0;
 }
@@ -77,12 +91,25 @@ int WINAPI WinMain(
     ShowWindow(hWnd, nCmdShow);
     UpdateWindow(hWnd);
 
-    MSG msg;
-    while (GetMessage(&msg, NULL, 0, 0)) {
-        TranslateMessage(&msg);
-        DispatchMessage(&msg);
+    // init directx
+    auto graphics = Graphics::init(hWnd);
+    if (!graphics.has_value()) {
+        MessageBox(NULL,
+            _T("Could not initialize DirectX"),
+            _T("graphics-labs"),
+            NULL);
+        return 1;
+    }
+
+    MSG msg{0};
+    while (msg.message != WM_QUIT) {
+        if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE)) {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        } else {
+            graphics.value().render();
+        }
     }
 
     return (int)msg.wParam;
 }
-
