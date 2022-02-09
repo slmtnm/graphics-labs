@@ -111,5 +111,6 @@ int WINAPI WinMain(
         }
     }
 
+    graphics.value().cleanup();
     return (int)msg.wParam;
 }
