@@ -1,6 +1,8 @@
 #include <optional>
 #include <vector>
 #include <d3d11_1.h>
+#include <d3dcompiler.h>
+#include <directxcolors.h>
 
 #include "graphics.h"
 
@@ -152,13 +154,166 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
     vp.TopLeftY = 0;
     graphics->context->RSSetViewports(1, &vp);
 
+    graphics->initGeometry();
+
     return graphics;
 }
+
+//--------------------------------------------------------------------------------------
+// Helper for compiling shaders with D3DCompile
+//
+// With VS 11, we could load up prebuilt .cso files instead...
+//--------------------------------------------------------------------------------------
+HRESULT Graphics::CompileShaderFromFile(const WCHAR* szFileName, LPCSTR szEntryPoint, LPCSTR szShaderModel, ID3DBlob** ppBlobOut)
+{
+    HRESULT hr = S_OK;
+
+    DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
+#ifdef _DEBUG
+    // Set the D3DCOMPILE_DEBUG flag to embed debug information in the shaders.
+    // Setting this flag improves the shader debugging experience, but still allows 
+    // the shaders to be optimized and to run exactly the way they will run in 
+    // the release configuration of this program.
+    dwShaderFlags |= D3DCOMPILE_DEBUG;
+
+    // Disable optimizations to further improve shader debugging
+    dwShaderFlags |= D3DCOMPILE_SKIP_OPTIMIZATION;
+#endif
+
+    ID3DBlob* pErrorBlob = nullptr;
+    hr = D3DCompileFromFile(szFileName, nullptr, nullptr, szEntryPoint, szShaderModel,
+        dwShaderFlags, 0, ppBlobOut, &pErrorBlob);
+    if (FAILED(hr))
+    {
+        if (pErrorBlob)
+        {
+            OutputDebugStringA(reinterpret_cast<const char*>(pErrorBlob->GetBufferPointer()));
+            pErrorBlob->Release();
+        }
+        return hr;
+    }
+    if (pErrorBlob) pErrorBlob->Release();
+
+    return S_OK;
+}
+
+void Graphics::initGeometry() {
+    // Compile the vertex shader
+    ID3DBlob* pVSBlob = nullptr;
+    auto hr = CompileShaderFromFile(L"simple.fx", "VS", "vs_4_0", &pVSBlob);
+    if (FAILED(hr))
+    {
+        MessageBox(nullptr,
+            L"The FX file cannot be compiled.  Please run this executable from the directory that contains the FX file.", L"Error", MB_OK);
+        return;
+    }
+
+    // Create the vertex shader
+    hr = device->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), nullptr, &vertexShader);
+    if (FAILED(hr))
+    {
+        pVSBlob->Release();
+        return;
+    }
+
+    // Define the input layout
+    D3D11_INPUT_ELEMENT_DESC layout[] =
+    {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+    };
+    UINT numElements = ARRAYSIZE(layout);
+
+    // Create the input layout
+    hr = device->CreateInputLayout(layout, numElements, pVSBlob->GetBufferPointer(),
+        pVSBlob->GetBufferSize(), &vertexLayout);
+    pVSBlob->Release();
+    if (FAILED(hr))
+        return;
+
+    // Set the input layout
+    context->IASetInputLayout(vertexLayout);
+
+    // Compile the pixel shader
+    ID3DBlob* pPSBlob = nullptr;
+    hr = CompileShaderFromFile(L"simple.fx", "PS", "ps_4_0", &pPSBlob);
+    if (FAILED(hr))
+    {
+        MessageBox(nullptr,
+            L"The FX file cannot be compiled.  Please run this executable from the directory that contains the FX file.", L"Error", MB_OK);
+        return;
+    }
+
+    // Create the pixel shader
+    hr = device->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), nullptr, &pixelShader);
+    pPSBlob->Release();
+    if (FAILED(hr))
+        return;
+
+    // Create vertex buffer
+    SimpleVertex vertices[] =
+    {
+        {0.5f, 0.5f, 0.5f},
+        {0.5f, -0.5f, 0.5f},
+        {-0.5f, -0.5f, 0.5f},
+        {-0.5f, 0.5f, 0.5f}
+    };
+
+    // Init vertex buffer
+    D3D11_BUFFER_DESC bd;
+    ZeroMemory(&bd, sizeof(bd));
+    bd.Usage = D3D11_USAGE_DEFAULT;
+    bd.ByteWidth = sizeof(vertices);
+    bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
+    bd.CPUAccessFlags = 0;
+    D3D11_SUBRESOURCE_DATA InitData;
+    ZeroMemory(&InitData, sizeof(InitData));
+    InitData.pSysMem = vertices;
+    hr = device->CreateBuffer(&bd, &InitData, &vertexBuffer);
+    if (FAILED(hr))
+        return;
+
+    // Set vertex buffer
+    UINT stride = sizeof(SimpleVertex);
+    UINT offset = 0;
+    context->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
+
+    // Create index buffer
+    UINT indices[] = { 0, 1, 2, 0, 2, 3 };
+    //UINT indices[] = {0, 1, 2, 3};
+
+    // Init index buffer
+    ZeroMemory(&bd, sizeof(bd));
+    bd.Usage = D3D11_USAGE_DEFAULT;
+    bd.ByteWidth = sizeof(indices);
+    bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
+    bd.CPUAccessFlags = 0;
+
+    //ZeroMemory( &InitData, sizeof(InitData) );
+    InitData.pSysMem = indices;
+    hr = device->CreateBuffer(&bd, &InitData, &indexBuffer);
+    if (FAILED(hr))
+        return;
+
+    // Set index buffer
+    context->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R32_UINT, 0);
+
+    // Set primitive topology
+    context->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+}
+
 
 void Graphics::render() {
     // Just clear the backbuffer
     float clearColor[] = {0.3f, 0.5f, 0.7f, 1.f};
     context->ClearRenderTargetView(renderTargetView, clearColor);
+
+    // Render a triangle
+    context->VSSetShader(vertexShader, nullptr, 0);
+    context->PSSetShader(pixelShader, nullptr, 0);
+    context->DrawIndexed(6, 0, 0);
+
+
     swapChain->Present(0, 0);
 }
 

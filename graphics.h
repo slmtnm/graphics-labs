@@ -3,11 +3,18 @@
 #include <memory>
 #include <vector>
 #include <d3d11_1.h>
+#include <directxmath.h>
+
 
 class Graphics {
 public:
     // factory method
     static std::shared_ptr<Graphics> init(HWND hWnd);
+
+    void initGeometry();
+
+    // compile shader
+    static HRESULT CompileShaderFromFile(const WCHAR* szFileName, LPCSTR szEntryPoint, LPCSTR szShaderModel, ID3DBlob** ppBlobOut);
 
     // render the frame
     void render();
@@ -28,4 +35,14 @@ private:
     IDXGISwapChain* swapChain = nullptr;
     IDXGISwapChain1* swapChain1 = nullptr;
     ID3D11RenderTargetView* renderTargetView = nullptr;
+
+    //------------//
+    ID3D11VertexShader* vertexShader = nullptr;
+    ID3D11PixelShader* pixelShader = nullptr;
+    ID3D11InputLayout* vertexLayout = nullptr;
+    ID3D11Buffer* vertexBuffer = nullptr;
+    ID3D11Buffer* indexBuffer = nullptr;
+
+
+    using SimpleVertex = DirectX::XMFLOAT3;
 };
