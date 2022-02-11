@@ -317,6 +317,20 @@ void Graphics::render() {
     swapChain->Present(0, 0);
 }
 
+void Graphics::releaseWithCheck(IUnknown *object) {
+#ifdef _DEBUG
+    ID3D11Debug *d3dDebug = nullptr;
+    object->QueryInterface(IID_PPV_ARGS(&d3dDebug));
+
+    UINT references = object->Release();
+    if (references > 1) {
+        d3dDebug->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL);
+    }
+
+#endif
+    object->Release();
+}
+
 void Graphics::cleanup() {
     if (context)
         context->ClearState();
@@ -337,8 +351,8 @@ void Graphics::cleanup() {
         context->Release();
 
     if (device1)
-        device1->Release();
+        releaseWithCheck(device1);
 
     if (device)
-        device->Release();
+        releaseWithCheck(device);
 }

@@ -22,6 +22,9 @@ public:
     // cleanup all d3d objects
     void cleanup();
 
+    // helper for releasing d3d object with checking number of residual references
+    void releaseWithCheck(IUnknown *object);
+
 private:
     // forbid constructors for fabric pattern and DirectX reasons
     Graphics() = default;
