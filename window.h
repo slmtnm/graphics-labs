@@ -31,5 +31,6 @@ private:
     Window& operator=(Window const&) = delete;
 
     static std::shared_ptr<Window> inst;
+    static std::shared_ptr<Graphics> graphics;
 };
 

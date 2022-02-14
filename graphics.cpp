@@ -3,6 +3,7 @@
 #include <d3d11_1.h>
 #include <d3dcompiler.h>
 #include <directxcolors.h>
+#include <chrono>
 
 #include "graphics.h"
 
@@ -158,6 +159,9 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
     hr = graphics->context->QueryInterface(__uuidof(graphics->annotation),
         reinterpret_cast<void**>(&graphics->annotation));
 
+    if (FAILED(hr))
+        return nullptr;
+
     return graphics;
 }
 
@@ -214,8 +218,10 @@ void Graphics::initGeometry() {
     }
 
     // Define the input layout
-    D3D11_INPUT_ELEMENT_DESC layout[] = {
+    D3D11_INPUT_ELEMENT_DESC layout[] =
+    {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
     };
     UINT numElements = ARRAYSIZE(layout);
 
@@ -245,11 +251,16 @@ void Graphics::initGeometry() {
         return;
 
     // Create vertex buffer
-    SimpleVertex vertices[] = {
-        {0.5f, 0.5f, 0.5f},
-        {0.5f, -0.5f, 0.5f},
-        {-0.5f, -0.5f, 0.5f},
-        {-0.5f, 0.5f, 0.5f}
+    SimpleVertex vertices[] =
+    {
+        { XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f) },
+        { XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f) },
+        { XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT4(0.0f, 1.0f, 1.0f, 1.0f) },
+        { XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) },
+        { XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT4(1.0f, 0.0f, 1.0f, 1.0f) },
+        { XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT4(1.0f, 1.0f, 0.0f, 1.0f) },
+        { XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) },
+        { XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f) },
     };
 
     // Init vertex buffer
@@ -272,11 +283,29 @@ void Graphics::initGeometry() {
     context->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
 
     // Create index buffer
-    UINT indices[] = { 0, 1, 2, 0, 2, 3 };
-    //UINT indices[] = {0, 1, 2, 3};
+    // Create index buffer
+    WORD indices[] =
+    {
+        3,1,0,
+        2,1,3,
+
+        0,5,4,
+        1,5,0,
+
+        3,4,7,
+        0,4,3,
+
+        1,6,5,
+        2,6,1,
+
+        2,7,6,
+        3,7,2,
+
+        6,4,5,
+        7,4,6,
+    };
 
     // Init index buffer
-    ZeroMemory(&bd, sizeof(bd));
     bd.Usage = D3D11_USAGE_DEFAULT;
     bd.ByteWidth = sizeof(indices);
     bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
@@ -289,10 +318,31 @@ void Graphics::initGeometry() {
         return;
 
     // Set index buffer
-    context->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R32_UINT, 0);
+    context->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R16_UINT, 0);
 
     // Set primitive topology
-    context->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+
+    // Create the constant buffer
+    bd.Usage = D3D11_USAGE_DEFAULT;
+    bd.ByteWidth = sizeof(ConstantBuffer);
+    bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
+    bd.CPUAccessFlags = 0;
+    hr = device->CreateBuffer(&bd, nullptr, &constBuffer);
+    if (FAILED(hr))
+        return;
+
+    // Initialize the world matrix
+    world = XMMatrixIdentity();
+
+    // Initialize the view matrix
+    XMVECTOR Eye = XMVectorSet(0.0f, 1.0f, -5.0f, 0.0f);
+    XMVECTOR At = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+    XMVECTOR Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+    view = XMMatrixLookAtLH(Eye, At, Up);
+
+    // Initialize the projection matrix
+    projection = XMMatrixPerspectiveFovLH(XM_PIDIV2, 1, 0.01f, 100.0f);
 }
 
 
@@ -301,13 +351,31 @@ void Graphics::render() {
     float clearColor[] = {0.3f, 0.5f, 0.7f, 1.f};
     context->ClearRenderTargetView(renderTargetView, clearColor);
 
+    //
+    // Update variables
+    //
+    ConstantBuffer cb;
+    ZeroMemory(&cb, sizeof(ConstantBuffer));
+    cb.mWorld = XMMatrixTranspose(world);
+    cb.mView = XMMatrixTranspose(view);
+    cb.mProjection = XMMatrixTranspose(projection);
+    auto time = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    cb.mTranslation = XMMatrixTranslation(0, 0, 0.3f);// *sin(time));
+#ifdef _DEBUG
+    annotation->BeginEvent(L"UpdConstBuffer");
+#endif
+    context->UpdateSubresource(constBuffer, 0, nullptr, &cb, 0, 0);
+#ifdef _DEBUG
+    annotation->EndEvent();
+#endif
+
     // Render a triangle
 #ifdef _DEBUG
     annotation->BeginEvent(L"DrawTriangle");
 #endif
     context->VSSetShader(vertexShader, nullptr, 0);
     context->PSSetShader(pixelShader, nullptr, 0);
-    context->DrawIndexed(6, 0, 0);
+    context->DrawIndexed(36, 0, 0);
 #ifdef _DEBUG
     annotation->EndEvent();
 #endif
@@ -359,7 +427,10 @@ HRESULT Graphics::resizeBackbuffer(UINT width, UINT height) {
     HRESULT hr;
     ID3D11RenderTargetView* nullViews [] = { nullptr };
 
-	context->OMSetRenderTargets(ARRAYSIZE(nullViews), nullViews, nullptr);
+    // Initialize the projection matrix
+    projection = XMMatrixPerspectiveFovLH(XM_PIDIV2, width / (FLOAT)height, 0.01f, 100.0f);
+
+    context->OMSetRenderTargets(ARRAYSIZE(nullViews), nullViews, nullptr);
     renderTargetView->Release();
     context->Flush();
 
@@ -380,8 +451,8 @@ HRESULT Graphics::resizeBackbuffer(UINT width, UINT height) {
     }
     backBuffer->Release();
 
-	CD3D11_VIEWPORT viewPort(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height));
-	context->RSSetViewports(1, &viewPort);
+    CD3D11_VIEWPORT viewPort(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height));
+    context->RSSetViewports(1, &viewPort);
 
     context->OMSetRenderTargets(1, &renderTargetView, nullptr);
     return S_OK;

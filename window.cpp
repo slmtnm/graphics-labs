@@ -5,6 +5,7 @@
 #include "graphics.h"
 
 std::shared_ptr<Window> Window::inst;
+std::shared_ptr<Graphics> Window::graphics;
 
 bool Window::onCreate(HWND hWnd, std::shared_ptr<Graphics>& graphics) {
     // init directx
@@ -26,26 +27,28 @@ LRESULT CALLBACK Window::WndProc(
     _In_ LPARAM lParam) {
     PAINTSTRUCT ps;
     HDC hdc;
-    static std::shared_ptr<Graphics> graphics;
 
     switch (msg) {
     case WM_CREATE:
         if (!inst->onCreate(hWnd, graphics))
-            return 1;
+            exit(0);
         break;
     case WM_PAINT:
         hdc = BeginPaint(hWnd, &ps);
+        RECT rc;
+        GetClientRect(hWnd, &rc);
+        InvalidateRect(hWnd, &rc, TRUE);
         graphics->render();
         EndPaint(hWnd, &ps);
         break;
     case WM_SIZE:
-      {
+    {
         UINT width = LOWORD(lParam);
         UINT height = HIWORD(lParam);
-        graphics->resizeBackbuffer(width, height);
-        SendMessage(hWnd, WM_PAINT, 0, 0);
+        //graphics->resizeBackbuffer(width, height);
+        //SendMessage(hWnd, WM_PAINT, 0, 0);
         break;
-      }
+    }
     case WM_CLOSE:
         graphics->cleanup();
         DestroyWindow(hWnd);
@@ -111,14 +114,29 @@ int Window::init(_In_ HINSTANCE hInstance,
         return 1;
     }
 
-    ShowWindow(hWnd, nCmdShow);
     UpdateWindow(hWnd);
+    ShowWindow(hWnd, nCmdShow);
 
     MSG msg{ 0 };
+    
     while (GetMessage(&msg, NULL, 0, 0)) {
         TranslateMessage(&msg);
         DispatchMessage(&msg);
     }
+
+    /*while (WM_QUIT != msg.message)
+    {
+        if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
+        {
+            TranslateMessage(&msg);
+            DispatchMessage(&msg);
+        }
+        else
+        {
+            graphics->render();
+        }
+    }*/
+
     return (int)msg.wParam;
 }
 

@@ -6,6 +6,8 @@
 #include <directxmath.h>
 
 
+using namespace DirectX;
+
 class Graphics {
 public:
     // factory method
@@ -48,8 +50,25 @@ private:
     ID3D11InputLayout* vertexLayout = nullptr;
     ID3D11Buffer* vertexBuffer = nullptr;
     ID3D11Buffer* indexBuffer = nullptr;
+    ID3D11Buffer* constBuffer = nullptr;
 
     ID3DUserDefinedAnnotation* annotation = nullptr;
 
-    using SimpleVertex = DirectX::XMFLOAT3;
+    struct SimpleVertex
+    {
+        XMFLOAT3 Pos;
+        XMFLOAT4 Color;
+    };
+
+    struct ConstantBuffer
+    {
+        XMMATRIX mWorld;
+        XMMATRIX mView;
+        XMMATRIX mProjection;
+        XMMATRIX mTranslation;
+    };
+
+    XMMATRIX world;
+    XMMATRIX view;
+    XMMATRIX projection;
 };
