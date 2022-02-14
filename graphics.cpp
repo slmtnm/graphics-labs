@@ -284,7 +284,7 @@ void Graphics::initGeometry() {
 
     // Create index buffer
     // Create index buffer
-    WORD indices[] =
+    UINT indices[] =
     {
         3,1,0,
         2,1,3,
@@ -318,7 +318,7 @@ void Graphics::initGeometry() {
         return;
 
     // Set index buffer
-    context->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R16_UINT, 0);
+    context->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R32_UINT, 0);
 
     // Set primitive topology
     context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
@@ -359,8 +359,8 @@ void Graphics::render() {
     cb.mWorld = XMMatrixTranspose(world);
     cb.mView = XMMatrixTranspose(view);
     cb.mProjection = XMMatrixTranspose(projection);
-    auto time = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    cb.mTranslation = XMMatrixTranslation(0, 0, 0.3f);// *sin(time));
+    auto time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
+    cb.mTranslation = XMMatrixTranslation(0, 0, 0.3f * sin(time / 10));
 #ifdef _DEBUG
     annotation->BeginEvent(L"UpdConstBuffer");
 #endif
@@ -374,6 +374,7 @@ void Graphics::render() {
     annotation->BeginEvent(L"DrawTriangle");
 #endif
     context->VSSetShader(vertexShader, nullptr, 0);
+    context->VSSetConstantBuffers(0, 1, &constBuffer);
     context->PSSetShader(pixelShader, nullptr, 0);
     context->DrawIndexed(36, 0, 0);
 #ifdef _DEBUG
@@ -434,7 +435,7 @@ HRESULT Graphics::resizeBackbuffer(UINT width, UINT height) {
     renderTargetView->Release();
     context->Flush();
 
-    hr = swapChain->ResizeBuffers(2, width, height, DXGI_FORMAT_R8G8B8A8_UNORM, 0);
+    hr = swapChain->ResizeBuffers(1, width, height, DXGI_FORMAT_R8G8B8A8_UNORM, 0);
     if (FAILED(hr)) {
         return hr;
     }

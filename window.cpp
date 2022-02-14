@@ -45,8 +45,7 @@ LRESULT CALLBACK Window::WndProc(
     {
         UINT width = LOWORD(lParam);
         UINT height = HIWORD(lParam);
-        //graphics->resizeBackbuffer(width, height);
-        //SendMessage(hWnd, WM_PAINT, 0, 0);
+        graphics->resizeBackbuffer(width, height);
         break;
     }
     case WM_CLOSE:
