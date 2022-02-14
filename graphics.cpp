@@ -11,6 +11,8 @@
 std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
     std::shared_ptr<Graphics> graphics(new Graphics);
 
+    graphics->start = std::chrono::system_clock::now();
+
     RECT rc;
     GetClientRect(hWnd, &rc);
     UINT width = rc.right - rc.left;
@@ -356,11 +358,15 @@ void Graphics::render() {
     //
     ConstantBuffer cb;
     ZeroMemory(&cb, sizeof(ConstantBuffer));
+
+    auto time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start).count() / 1000.0;
+
+    world = XMMatrixRotationY(time);
+
     cb.mWorld = XMMatrixTranspose(world);
     cb.mView = XMMatrixTranspose(view);
     cb.mProjection = XMMatrixTranspose(projection);
-    auto time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now().time_since_epoch()).count();
-    cb.mTranslation = XMMatrixTranslation(0, 0, 0.3f * sin(time / 10));
+    cb.mTranslation = XMMatrixTranslation(0, 0, 0.3f * sin(time));
 #ifdef _DEBUG
     annotation->BeginEvent(L"UpdConstBuffer");
 #endif

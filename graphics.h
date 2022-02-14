@@ -2,6 +2,7 @@
 
 #include <memory>
 #include <vector>
+#include <chrono>
 #include <d3d11_1.h>
 #include <directxmath.h>
 
@@ -71,4 +72,5 @@ private:
     XMMATRIX world;
     XMMATRIX view;
     XMMATRIX projection;
+    std::chrono::system_clock::time_point start;
 };

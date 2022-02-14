@@ -34,12 +34,7 @@ LRESULT CALLBACK Window::WndProc(
             exit(0);
         break;
     case WM_PAINT:
-        hdc = BeginPaint(hWnd, &ps);
-        RECT rc;
-        GetClientRect(hWnd, &rc);
-        InvalidateRect(hWnd, &rc, TRUE);
         graphics->render();
-        EndPaint(hWnd, &ps);
         break;
     case WM_SIZE:
     {
@@ -122,19 +117,6 @@ int Window::init(_In_ HINSTANCE hInstance,
         TranslateMessage(&msg);
         DispatchMessage(&msg);
     }
-
-    /*while (WM_QUIT != msg.message)
-    {
-        if (PeekMessage(&msg, nullptr, 0, 0, PM_REMOVE))
-        {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
-        }
-        else
-        {
-            graphics->render();
-        }
-    }*/
 
     return (int)msg.wParam;
 }
