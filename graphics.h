@@ -49,6 +49,7 @@ private:
     ID3D11Buffer* vertexBuffer = nullptr;
     ID3D11Buffer* indexBuffer = nullptr;
 
+    ID3DUserDefinedAnnotation* annotation = nullptr;
 
     using SimpleVertex = DirectX::XMFLOAT3;
 };

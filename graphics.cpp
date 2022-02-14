@@ -155,6 +155,9 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
 
     graphics->initGeometry();
 
+    hr = graphics->context->QueryInterface(__uuidof(graphics->annotation),
+        reinterpret_cast<void**>(&graphics->annotation));
+
     return graphics;
 }
 
@@ -299,10 +302,15 @@ void Graphics::render() {
     context->ClearRenderTargetView(renderTargetView, clearColor);
 
     // Render a triangle
+#ifdef _DEBUG
+    annotation->BeginEvent(L"DrawTriangle");
+#endif
     context->VSSetShader(vertexShader, nullptr, 0);
     context->PSSetShader(pixelShader, nullptr, 0);
     context->DrawIndexed(6, 0, 0);
-
+#ifdef _DEBUG
+    annotation->EndEvent();
+#endif
 
     swapChain->Present(0, 0);
 }
