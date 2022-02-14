@@ -25,6 +25,9 @@ public:
     // helper for releasing d3d object with checking number of residual references
     void releaseWithCheck(IUnknown *object);
 
+    // resize swapchain buffers
+    HRESULT resizeBackbuffer(UINT width, UINT height);
+
 private:
     // forbid constructors for fabric pattern and DirectX reasons
     Graphics() = default;

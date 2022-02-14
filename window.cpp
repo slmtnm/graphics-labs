@@ -38,6 +38,14 @@ LRESULT CALLBACK Window::WndProc(
         graphics->render();
         EndPaint(hWnd, &ps);
         break;
+    case WM_SIZE:
+      {
+        UINT width = LOWORD(lParam);
+        UINT height = HIWORD(lParam);
+        graphics->resizeBackbuffer(width, height);
+        SendMessage(hWnd, WM_PAINT, 0, 0);
+        break;
+      }
     case WM_CLOSE:
         graphics->cleanup();
         DestroyWindow(hWnd);
@@ -107,11 +115,8 @@ int Window::init(_In_ HINSTANCE hInstance,
     UpdateWindow(hWnd);
 
     MSG msg{ 0 };
-    while (GetMessage(&msg, NULL, 0, 0))
-    {
-        /* Translate virtual-key msg into character msg */
+    while (GetMessage(&msg, NULL, 0, 0)) {
         TranslateMessage(&msg);
-        /* Send message to WindowProcedure */
         DispatchMessage(&msg);
     }
     return (int)msg.wParam;

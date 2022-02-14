@@ -103,8 +103,7 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
 
         dxgiFactory2->Release();
     }
-    else
-    {
+    else {
         // DirectX 11.0 systems
         DXGI_SWAP_CHAIN_DESC sd;
         ZeroMemory(&sd, sizeof(sd));
@@ -164,8 +163,7 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
 //
 // With VS 11, we could load up prebuilt .cso files instead...
 //--------------------------------------------------------------------------------------
-HRESULT Graphics::CompileShaderFromFile(const WCHAR* szFileName, LPCSTR szEntryPoint, LPCSTR szShaderModel, ID3DBlob** ppBlobOut)
-{
+HRESULT Graphics::CompileShaderFromFile(const WCHAR* szFileName, LPCSTR szEntryPoint, LPCSTR szShaderModel, ID3DBlob** ppBlobOut) {
     HRESULT hr = S_OK;
 
     DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
@@ -183,10 +181,8 @@ HRESULT Graphics::CompileShaderFromFile(const WCHAR* szFileName, LPCSTR szEntryP
     ID3DBlob* pErrorBlob = nullptr;
     hr = D3DCompileFromFile(szFileName, nullptr, nullptr, szEntryPoint, szShaderModel,
         dwShaderFlags, 0, ppBlobOut, &pErrorBlob);
-    if (FAILED(hr))
-    {
-        if (pErrorBlob)
-        {
+    if (FAILED(hr)) {
+        if (pErrorBlob) {
             OutputDebugStringA(reinterpret_cast<const char*>(pErrorBlob->GetBufferPointer()));
             pErrorBlob->Release();
         }
@@ -201,8 +197,7 @@ void Graphics::initGeometry() {
     // Compile the vertex shader
     ID3DBlob* pVSBlob = nullptr;
     auto hr = CompileShaderFromFile(L"simple.fx", "VS", "vs_4_0", &pVSBlob);
-    if (FAILED(hr))
-    {
+    if (FAILED(hr)) {
         MessageBox(nullptr,
             L"The FX file cannot be compiled.  Please run this executable from the directory that contains the FX file.", L"Error", MB_OK);
         return;
@@ -210,15 +205,13 @@ void Graphics::initGeometry() {
 
     // Create the vertex shader
     hr = device->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), nullptr, &vertexShader);
-    if (FAILED(hr))
-    {
+    if (FAILED(hr)) {
         pVSBlob->Release();
         return;
     }
 
     // Define the input layout
-    D3D11_INPUT_ELEMENT_DESC layout[] =
-    {
+    D3D11_INPUT_ELEMENT_DESC layout[] = {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
     };
     UINT numElements = ARRAYSIZE(layout);
@@ -236,8 +229,7 @@ void Graphics::initGeometry() {
     // Compile the pixel shader
     ID3DBlob* pPSBlob = nullptr;
     hr = CompileShaderFromFile(L"simple.fx", "PS", "ps_4_0", &pPSBlob);
-    if (FAILED(hr))
-    {
+    if (FAILED(hr)) {
         MessageBox(nullptr,
             L"The FX file cannot be compiled.  Please run this executable from the directory that contains the FX file.", L"Error", MB_OK);
         return;
@@ -250,8 +242,7 @@ void Graphics::initGeometry() {
         return;
 
     // Create vertex buffer
-    SimpleVertex vertices[] =
-    {
+    SimpleVertex vertices[] = {
         {0.5f, 0.5f, 0.5f},
         {0.5f, -0.5f, 0.5f},
         {-0.5f, -0.5f, 0.5f},
@@ -299,7 +290,6 @@ void Graphics::initGeometry() {
 
     // Set primitive topology
     context->IASetPrimitiveTopology(D3D10_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
 }
 
 
@@ -356,3 +346,36 @@ void Graphics::cleanup() {
     if (device)
         releaseWithCheck(device);
 }
+
+HRESULT Graphics::resizeBackbuffer(UINT width, UINT height) {
+    HRESULT hr;
+    ID3D11RenderTargetView* nullViews [] = { nullptr };
+
+	context->OMSetRenderTargets(ARRAYSIZE(nullViews), nullViews, nullptr);
+    renderTargetView->Release();
+    context->Flush();
+
+    hr = swapChain->ResizeBuffers(2, width, height, DXGI_FORMAT_R8G8B8A8_UNORM, 0);
+    if (FAILED(hr)) {
+        return hr;
+    }
+
+    ID3D11Texture2D* backBuffer = nullptr;
+    hr = swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&backBuffer));
+    if (FAILED(hr)) {
+        return hr;
+    }
+
+    hr = device->CreateRenderTargetView(backBuffer, nullptr, &renderTargetView);
+    if (FAILED(hr)) {
+        return hr;
+    }
+    backBuffer->Release();
+
+	CD3D11_VIEWPORT viewPort(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height));
+	context->RSSetViewports(1, &viewPort);
+
+    context->OMSetRenderTargets(1, &renderTargetView, nullptr);
+    return S_OK;
+}
+
