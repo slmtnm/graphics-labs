@@ -338,13 +338,13 @@ void Graphics::initGeometry() {
     world = XMMatrixIdentity();
 
     // Initialize the view matrix
-    XMVECTOR Eye = XMVectorSet(0.0f, 1.0f, -5.0f, 0.0f);
-    XMVECTOR At = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
+    XMVECTOR Eye = XMVectorSet(0.0f, 0.0f, -5.0f, 0.0f);
+    XMVECTOR At = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
     XMVECTOR Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
     view = XMMatrixLookAtLH(Eye, At, Up);
 
     // Initialize the projection matrix
-    projection = XMMatrixPerspectiveFovLH(XM_PIDIV2, 1, 0.01f, 100.0f);
+    projection = XMMatrixPerspectiveFovLH(XM_PIDIV2, 1, 0.001f, 100.0f);
 }
 
 
@@ -366,7 +366,7 @@ void Graphics::render() {
     cb.mWorld = XMMatrixTranspose(world);
     cb.mView = XMMatrixTranspose(view);
     cb.mProjection = XMMatrixTranspose(projection);
-    cb.mTranslation = XMMatrixTranslation(0, 0, 0.3f * sin(time));
+    cb.mTranslation = XMMatrixTranslation(0, 0.2, 0);
 #ifdef _DEBUG
     annotation->BeginEvent(L"UpdConstBuffer");
 #endif
@@ -391,9 +391,11 @@ void Graphics::render() {
 }
 
 void Graphics::releaseWithCheck(IUnknown *object) {
+    if (object == nullptr)
+        return;
 #ifdef _DEBUG
     ID3D11Debug *d3dDebug = nullptr;
-    object->QueryInterface(IID_PPV_ARGS(&d3dDebug));
+    device->QueryInterface(IID_ID3D11Debug, reinterpret_cast<void **>(&d3dDebug));
 
     UINT references = object->Release();
     if (references > 1) {
@@ -401,33 +403,30 @@ void Graphics::releaseWithCheck(IUnknown *object) {
     }
 
 #endif
-    object->Release();
 }
 
 void Graphics::cleanup() {
     if (context)
         context->ClearState();
 
-    if (renderTargetView)
-        renderTargetView->Release();
+    releaseWithCheck(renderTargetView);
 
-    if (swapChain1)
-        swapChain1->Release();
+    releaseWithCheck(vertexShader);
+    releaseWithCheck(pixelShader);
+    releaseWithCheck(vertexLayout);
+    releaseWithCheck(vertexBuffer);
+    releaseWithCheck(indexBuffer);
+    releaseWithCheck(constBuffer);
+    releaseWithCheck(annotation);
 
-    if (swapChain)
-        swapChain->Release();
+    releaseWithCheck(swapChain1);
+    releaseWithCheck(swapChain);
 
-    if (context1)
-        context1->Release();
+    releaseWithCheck(context1);
+    releaseWithCheck(context);
 
-    if (context)
-        context->Release();
-
-    if (device1)
-        releaseWithCheck(device1);
-
-    if (device)
-        releaseWithCheck(device);
+    releaseWithCheck(device1);
+    releaseWithCheck(device);
 }
 
 HRESULT Graphics::resizeBackbuffer(UINT width, UINT height) {
