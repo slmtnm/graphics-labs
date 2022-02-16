@@ -402,6 +402,7 @@ void Graphics::releaseWithCheck(IUnknown *object) {
         d3dDebug->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL);
     }
 
+    d3dDebug->Release();
 #endif
 }
 
