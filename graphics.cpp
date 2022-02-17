@@ -39,7 +39,7 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
     HRESULT hr = S_OK;
     for (auto &driverType: driverTypes) {
         hr = D3D11CreateDevice(
-        nullptr, driverType, nullptr, 
+        nullptr, driverType, nullptr,
         createDeviceFlags, featureLevels.data(), featureLevels.size(),
         D3D11_SDK_VERSION, &graphics->device, &featureLevel, &graphics->context);
         
@@ -230,7 +230,9 @@ void Graphics::initGeometry() {
     // Create the input layout
     hr = device->CreateInputLayout(layout, numElements, pVSBlob->GetBufferPointer(),
         pVSBlob->GetBufferSize(), &vertexLayout);
+
     pVSBlob->Release();
+
     if (FAILED(hr))
         return;
 
@@ -249,6 +251,7 @@ void Graphics::initGeometry() {
     // Create the pixel shader
     hr = device->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), nullptr, &pixelShader);
     pPSBlob->Release();
+
     if (FAILED(hr))
         return;
 
@@ -393,17 +396,7 @@ void Graphics::render() {
 void Graphics::releaseWithCheck(IUnknown *object) {
     if (object == nullptr)
         return;
-#ifdef _DEBUG
-    ID3D11Debug *d3dDebug = nullptr;
-    device->QueryInterface(IID_ID3D11Debug, reinterpret_cast<void **>(&d3dDebug));
-
-    UINT references = object->Release();
-    if (references > 1) {
-        d3dDebug->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL);
-    }
-
-    d3dDebug->Release();
-#endif
+    object->Release();
 }
 
 void Graphics::cleanup() {
@@ -427,7 +420,14 @@ void Graphics::cleanup() {
     releaseWithCheck(context);
 
     releaseWithCheck(device1);
-    releaseWithCheck(device);
+
+    ID3D11Debug* d3dDebug = nullptr;
+    device->QueryInterface(IID_ID3D11Debug, reinterpret_cast<void**>(&d3dDebug));
+    UINT references = device->Release();
+    if (references > 1) {
+        d3dDebug->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL);
+    }
+    d3dDebug->Release();
 }
 
 HRESULT Graphics::resizeBackbuffer(UINT width, UINT height) {
