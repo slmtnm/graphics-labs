@@ -424,9 +424,11 @@ void Graphics::cleanup() {
     ID3D11Debug* d3dDebug = nullptr;
     device->QueryInterface(IID_ID3D11Debug, reinterpret_cast<void**>(&d3dDebug));
     UINT references = device->Release();
+#ifdef _DEBUG
     if (references > 1) {
         d3dDebug->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL);
     }
+#endif
     d3dDebug->Release();
 }
 
