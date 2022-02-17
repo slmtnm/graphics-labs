@@ -59,6 +59,12 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
         return nullptr;
     }
 
+    hr = graphics->context->QueryInterface(__uuidof(ID3DUserDefinedAnnotation),
+        reinterpret_cast<void**>(&graphics->annotation));
+
+    if (FAILED(hr))
+        return nullptr;
+
     // Obtain DXGI factory from device (since we used nullptr for pAdapter above)
     IDXGIFactory1* dxgiFactory = nullptr;
     {
@@ -158,12 +164,6 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
 
     graphics->initGeometry();
 
-    hr = graphics->context->QueryInterface(__uuidof(graphics->annotation),
-        reinterpret_cast<void**>(&graphics->annotation));
-
-    if (FAILED(hr))
-        return nullptr;
-
     return graphics;
 }
 
@@ -231,8 +231,6 @@ void Graphics::initGeometry() {
     hr = device->CreateInputLayout(layout, numElements, pVSBlob->GetBufferPointer(),
         pVSBlob->GetBufferSize(), &vertexLayout);
 
-    pVSBlob->Release();
-
     if (FAILED(hr))
         return;
 
@@ -287,7 +285,6 @@ void Graphics::initGeometry() {
     UINT offset = 0;
     context->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
 
-    // Create index buffer
     // Create index buffer
     UINT indices[] =
     {
@@ -393,39 +390,49 @@ void Graphics::render() {
     swapChain->Present(0, 0);
 }
 
-void Graphics::releaseWithCheck(IUnknown *object) {
+bool Graphics::releaseWithCheck(IUnknown *object, int refs_avaiable) {
     if (object == nullptr)
-        return;
+        return false;
+    auto refs = object->Release();
+    return refs > refs_avaiable;
+}
+
+void Graphics::release(IUnknown* object) {
+    if (object == nullptr)
+        return ;
     object->Release();
 }
 
+
 void Graphics::cleanup() {
+    bool need_rldo = false;
+    need_rldo |= releaseWithCheck(renderTargetView);
+
+    need_rldo |= releaseWithCheck(vertexShader);
+    need_rldo |= releaseWithCheck(pixelShader);
+    need_rldo |= releaseWithCheck(vertexLayout);
+    need_rldo |= releaseWithCheck(vertexBuffer);
+    need_rldo |= releaseWithCheck(indexBuffer);
+    need_rldo |= releaseWithCheck(constBuffer);
+
+    need_rldo |= releaseWithCheck(swapChain1, 1);
+    release(swapChain);
+
     if (context)
         context->ClearState();
 
-    releaseWithCheck(renderTargetView);
+    need_rldo |= releaseWithCheck(annotation);
+    need_rldo |= releaseWithCheck(context1, 1);
+    release(context);
 
-    releaseWithCheck(vertexShader);
-    releaseWithCheck(pixelShader);
-    releaseWithCheck(vertexLayout);
-    releaseWithCheck(vertexBuffer);
-    releaseWithCheck(indexBuffer);
-    releaseWithCheck(constBuffer);
-    releaseWithCheck(annotation);
 
-    releaseWithCheck(swapChain1);
-    releaseWithCheck(swapChain);
-
-    releaseWithCheck(context1);
-    releaseWithCheck(context);
-
-    releaseWithCheck(device1);
+    need_rldo |= releaseWithCheck(device1, 1);
 
     ID3D11Debug* d3dDebug = nullptr;
     device->QueryInterface(IID_ID3D11Debug, reinterpret_cast<void**>(&d3dDebug));
-    UINT references = device->Release();
+    device->Release();
 #ifdef _DEBUG
-    if (references > 1) {
+    if (need_rldo) {
         d3dDebug->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL);
     }
 #endif
