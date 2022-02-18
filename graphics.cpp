@@ -40,14 +40,14 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
     for (auto &driverType: driverTypes) {
         hr = D3D11CreateDevice(
         nullptr, driverType, nullptr,
-        createDeviceFlags, featureLevels.data(), featureLevels.size(),
+        createDeviceFlags, featureLevels.data(), static_cast<UINT>(featureLevels.size()),
         D3D11_SDK_VERSION, &graphics->device, &featureLevel, &graphics->context);
         
         if (FAILED(hr)) {
             // DirectX 11.0 platforms will not recognize D3D_FEATURE_LEVEL_11_1 so we need to retry without it
             hr = D3D11CreateDevice(
                 nullptr, driverType, nullptr,
-                createDeviceFlags, featureLevels.data() + 1, featureLevels.size() - 1,
+                createDeviceFlags, featureLevels.data() + 1, static_cast<UINT>(featureLevels.size() - 1),
                 D3D11_SDK_VERSION, &graphics->device, &featureLevel, &graphics->context);
         }
 
@@ -359,14 +359,14 @@ void Graphics::render() {
     ConstantBuffer cb;
     ZeroMemory(&cb, sizeof(ConstantBuffer));
 
-    auto time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start).count() / 1000.0;
+    auto time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start).count() / 1000.0f;
 
     world = XMMatrixRotationY(time);
 
     cb.mWorld = XMMatrixTranspose(world);
     cb.mView = XMMatrixTranspose(view);
     cb.mProjection = XMMatrixTranspose(projection);
-    cb.mTranslation = XMMatrixTranslation(0, 0.2, 0);
+    cb.mTranslation = XMMatrixTranslation(.0f, 0.2f, .0f);
 #ifdef _DEBUG
     annotation->BeginEvent(L"UpdConstBuffer");
 #endif
