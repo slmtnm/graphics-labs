@@ -25,12 +25,6 @@ public:
     // cleanup all d3d objects
     void cleanup();
 
-    // helper for releasing d3d object with checking number of residual references
-    bool releaseWithCheck(IUnknown *object, int refs_avaiable = 0);
-
-    // helper for releasing d3d object with nullptr check
-    void release(IUnknown* object);
-
     // resize swapchain buffers
     HRESULT resizeBackbuffer(UINT width, UINT height);
 

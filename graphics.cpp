@@ -390,49 +390,30 @@ void Graphics::render() {
     swapChain->Present(0, 0);
 }
 
-bool Graphics::releaseWithCheck(IUnknown *object, int refs_avaiable) {
-    if (object == nullptr)
-        return false;
-    auto refs = object->Release();
-    return refs > refs_avaiable;
-}
-
-void Graphics::release(IUnknown* object) {
-    if (object == nullptr)
-        return ;
-    object->Release();
-}
-
-
 void Graphics::cleanup() {
-    bool need_rldo = false;
-    need_rldo |= releaseWithCheck(renderTargetView);
+    if (renderTargetView) renderTargetView->Release();
+    if (vertexShader) vertexShader->Release();
+    if (pixelShader) pixelShader->Release();
+    if (vertexBuffer) vertexBuffer->Release();
+    if (vertexLayout) vertexLayout->Release();
+    if (indexBuffer) indexBuffer->Release();
+    if (constBuffer) constBuffer->Release();
+    if (swapChain1) swapChain1->Release();
+    if (swapChain) swapChain->Release();
+    if (annotation) annotation->Release();
 
-    need_rldo |= releaseWithCheck(vertexShader);
-    need_rldo |= releaseWithCheck(pixelShader);
-    need_rldo |= releaseWithCheck(vertexLayout);
-    need_rldo |= releaseWithCheck(vertexBuffer);
-    need_rldo |= releaseWithCheck(indexBuffer);
-    need_rldo |= releaseWithCheck(constBuffer);
-
-    need_rldo |= releaseWithCheck(swapChain1, 1);
-    release(swapChain);
-
-    if (context)
-        context->ClearState();
-
-    need_rldo |= releaseWithCheck(annotation, 2);
-    need_rldo |= releaseWithCheck(context1, 1);
-    release(context);
-
-
-    need_rldo |= releaseWithCheck(device1, 1);
+    if (context) context->ClearState();
+    if (context1) context1->Release();
+    if (context) context->Release();
+    if (device1) device1->Release();
 
     ID3D11Debug* d3dDebug = nullptr;
     device->QueryInterface(IID_ID3D11Debug, reinterpret_cast<void**>(&d3dDebug));
-    device->Release();
+    
+    int refs = device->Release();
+
 #ifdef _DEBUG
-    if (need_rldo) {
+    if (refs > 1) {
         d3dDebug->ReportLiveDeviceObjects(D3D11_RLDO_DETAIL);
     }
 #endif
