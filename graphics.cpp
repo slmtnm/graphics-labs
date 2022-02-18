@@ -421,7 +421,7 @@ void Graphics::cleanup() {
     if (context)
         context->ClearState();
 
-    need_rldo |= releaseWithCheck(annotation);
+    need_rldo |= releaseWithCheck(annotation, 2);
     need_rldo |= releaseWithCheck(context1, 1);
     release(context);
 
