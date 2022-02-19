@@ -25,9 +25,6 @@ LRESULT CALLBACK Window::WndProc(
     _In_ UINT msg,
     _In_ WPARAM wParam,
     _In_ LPARAM lParam) {
-    PAINTSTRUCT ps;
-    HDC hdc;
-
     switch (msg) {
     case WM_CREATE:
         if (!inst->onCreate(hWnd, graphics))
@@ -36,6 +33,56 @@ LRESULT CALLBACK Window::WndProc(
     case WM_PAINT:
         graphics->render();
         break;
+    case WM_KEYDOWN:
+    {
+        auto vkCode = LOWORD(wParam);
+        switch (vkCode) {
+        case 0x41: // A
+            graphics->setMoveLeft(true);
+            break;
+        case 0x44: // D
+            graphics->setMoveRight(true);
+            break;
+        case 0x53: // S
+            graphics->setMoveBackward(true);
+            break;
+        case 0x57: // W
+            graphics->setMoveForward(true);
+            break;
+        case VK_SPACE:
+            graphics->setMoveUp(true);
+            break;
+        case 0x43: // C
+            graphics->setMoveDown(true);
+            break;
+        }
+        break;
+    }
+    case WM_KEYUP:
+    {
+        auto vkCode = LOWORD(wParam);
+        switch (vkCode) {
+        case 0x41: // A
+            graphics->setMoveLeft(false);
+            break;
+        case 0x44: // D
+            graphics->setMoveRight(false);
+            break;
+        case 0x53: // S
+            graphics->setMoveBackward(false);
+            break;
+        case 0x57: // W
+            graphics->setMoveForward(false);
+            break;
+        case VK_SPACE:
+            graphics->setMoveUp(false);
+            break;
+        case 0x43: // C
+            graphics->setMoveDown(false);
+            break;
+        }
+        break;
+    }
     case WM_SIZE:
     {
         UINT width = LOWORD(lParam);
@@ -124,8 +171,7 @@ int Window::init(_In_ HINSTANCE hInstance,
 std::shared_ptr<Window> Window::window(_In_ HINSTANCE hInstance,
     _In_opt_ HINSTANCE hPrevInstance,
     _In_ LPSTR lpCmdLine,
-    _In_ int nCmdShow)
-{
+    _In_ int nCmdShow) {
     inst->init(hInstance, hPrevInstance, lpCmdLine, nCmdShow);
     return inst;
 }

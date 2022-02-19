@@ -6,6 +6,7 @@
 #include <chrono>
 
 #include "graphics.h"
+#include "camera.h"
 
 
 std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
@@ -316,8 +317,9 @@ void Graphics::initGeometry() {
     //ZeroMemory( &InitData, sizeof(InitData) );
     InitData.pSysMem = indices;
     hr = device->CreateBuffer(&bd, &InitData, &indexBuffer);
-    if (FAILED(hr))
+    if (FAILED(hr)) {
         return;
+    }
 
     // Set index buffer
     context->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R32_UINT, 0);
@@ -331,31 +333,39 @@ void Graphics::initGeometry() {
     bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
     bd.CPUAccessFlags = 0;
     hr = device->CreateBuffer(&bd, nullptr, &constBuffer);
-    if (FAILED(hr))
+    if (FAILED(hr)) {
         return;
+    }
 
     // Initialize the world matrix
     world = XMMatrixIdentity();
-
-    // Initialize the view matrix
-    XMVECTOR Eye = XMVectorSet(0.0f, 0.0f, -5.0f, 0.0f);
-    XMVECTOR At = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
-    XMVECTOR Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-    view = XMMatrixLookAtLH(Eye, At, Up);
-
-    // Initialize the projection matrix
-    projection = XMMatrixPerspectiveFovLH(XM_PIDIV2, 1, 0.001f, 100.0f);
 }
 
 
 void Graphics::render() {
     // Just clear the backbuffer
-    float clearColor[] = {0.3f, 0.5f, 0.7f, 1.f};
+    float clearColor[] = { 0.3f, 0.5f, 0.7f, 1.0f };
     context->ClearRenderTargetView(renderTargetView, clearColor);
 
-    //
+    // Camera movement
+    XMVECTOR moveDirection = { 0.0f, 0.0f, 0.0f, 0.0f };
+    if (moveRight) moveDirection += camera.getRight();
+    if (moveLeft) moveDirection += -camera.getRight();
+    if (moveForward) moveDirection += camera.getDirection();
+    if (moveBackward) moveDirection -= camera.getDirection();
+    if (moveUp) moveDirection += { 0.0f, 1.0f, 0.0f, 0.0f };
+    if (moveDown) moveDirection += { 0.0f, -1.0f, 0.0f, 0.0f };
+
+    float deltaTime = (timeGetTime() - lastFrame) / 1000.0f;
+    moveDirection *= moveSpeed * deltaTime;
+
+    if (XMVectorGetX(XMVector3Length(moveDirection)) > 1e-4) {
+		camera.move(moveDirection);
+    }
+
+    lastFrame = timeGetTime();
+
     // Update variables
-    //
     ConstantBuffer cb;
     ZeroMemory(&cb, sizeof(ConstantBuffer));
 
@@ -364,8 +374,8 @@ void Graphics::render() {
     world = XMMatrixRotationY(time);
 
     cb.mWorld = XMMatrixTranspose(world);
-    cb.mView = XMMatrixTranspose(view);
-    cb.mProjection = XMMatrixTranspose(projection);
+    cb.mView = XMMatrixTranspose(camera.view());
+    cb.mProjection = XMMatrixTranspose(camera.projection());
     cb.mTranslation = XMMatrixTranslation(.0f, 0.2f, .0f);
 #ifdef _DEBUG
     annotation->BeginEvent(L"UpdConstBuffer");
@@ -424,8 +434,7 @@ HRESULT Graphics::resizeBackbuffer(UINT width, UINT height) {
     HRESULT hr;
     ID3D11RenderTargetView* nullViews [] = { nullptr };
 
-    // Initialize the projection matrix
-    projection = XMMatrixPerspectiveFovLH(XM_PIDIV2, width / (FLOAT)height, 0.01f, 100.0f);
+    camera.setAspectRatio(width / (FLOAT)height);
 
     context->OMSetRenderTargets(ARRAYSIZE(nullViews), nullViews, nullptr);
     renderTargetView->Release();
@@ -454,4 +463,11 @@ HRESULT Graphics::resizeBackbuffer(UINT width, UINT height) {
     context->OMSetRenderTargets(1, &renderTargetView, nullptr);
     return S_OK;
 }
+
+void Graphics::setMoveRight(bool move) { moveRight = move; }
+void Graphics::setMoveLeft(bool move) { moveLeft = move; }
+void Graphics::setMoveForward(bool move) { moveForward = move; }
+void Graphics::setMoveBackward(bool move) { moveBackward = move; }
+void Graphics::setMoveUp(bool move) { moveUp = move; }
+void Graphics::setMoveDown(bool move) { moveDown = move; }
 

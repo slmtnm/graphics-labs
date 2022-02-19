@@ -6,6 +6,7 @@
 #include <d3d11_1.h>
 #include <directxmath.h>
 
+#include "camera.h"
 
 using namespace DirectX;
 
@@ -27,6 +28,13 @@ public:
 
     // resize swapchain buffers
     HRESULT resizeBackbuffer(UINT width, UINT height);
+
+    void setMoveLeft(bool move);
+    void setMoveRight(bool move);
+    void setMoveForward(bool move);
+    void setMoveBackward(bool move);
+    void setMoveUp(bool move);
+    void setMoveDown(bool move);
 
 private:
     // forbid constructors for fabric pattern and DirectX reasons
@@ -67,7 +75,21 @@ private:
     };
 
     XMMATRIX world;
-    XMMATRIX view;
-    XMMATRIX projection;
+    Camera camera;
+
     std::chrono::system_clock::time_point start;
+
+    // movement flags
+    bool moveRight = false;
+    bool moveLeft = false;
+    bool moveForward = false;
+    bool moveBackward = false;
+    bool moveUp = false;
+    bool moveDown = false;
+
+    // movement speed
+    const float moveSpeed = 5.0f;
+
+    // last frame timestamp
+    DWORD lastFrame = timeGetTime();
 };
