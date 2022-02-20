@@ -471,3 +471,7 @@ void Graphics::setMoveBackward(bool move) { moveBackward = move; }
 void Graphics::setMoveUp(bool move) { moveUp = move; }
 void Graphics::setMoveDown(bool move) { moveDown = move; }
 
+void Graphics::rotate(int mouseDeltaX, int mouseDeltaY) {
+    camera.rotate(mouseDeltaX * sensitivity, mouseDeltaY * sensitivity);
+}
+

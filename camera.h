@@ -23,6 +23,10 @@ class Camera {
 
 	void updateViewMatrix();
 	void updateProjectionMatrix();
+	void updateDirection();
+
+	float yaw = 90.0f;
+	float pitch = 0.0f;
 public:
 	Camera();
 
@@ -34,6 +38,6 @@ public:
 
 	void setAspectRatio(const float aspectRatio);
 	void move(XMVECTOR delta);
-	void rotate(float pitch, float yaw);
+	void rotate(float dx, float dy);
 };
 

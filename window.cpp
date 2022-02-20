@@ -1,4 +1,5 @@
 #include <windows.h>
+#include <windowsx.h>
 #include <d3d11_1.h>
 #include <tchar.h>
 #include "window.h"
@@ -29,6 +30,10 @@ LRESULT CALLBACK Window::WndProc(
     case WM_CREATE:
         if (!inst->onCreate(hWnd, graphics))
             exit(0);
+        RECT rc;
+        GetWindowRect(hWnd, &rc);
+        SetCursorPos((rc.left + rc.right) / 2, (rc.top + rc.bottom) / 2);
+        ShowCursor(FALSE);
         break;
     case WM_PAINT:
         graphics->render();
@@ -55,6 +60,9 @@ LRESULT CALLBACK Window::WndProc(
         case 0x43: // C
             graphics->setMoveDown(true);
             break;
+        case 0x51: // Q
+            PostMessage(hWnd, WM_CLOSE, 0, 0);
+            break;
         }
         break;
     }
@@ -80,6 +88,26 @@ LRESULT CALLBACK Window::WndProc(
         case 0x43: // C
             graphics->setMoveDown(false);
             break;
+        }
+        break;
+    }
+    case WM_MOUSEMOVE:
+    {
+        RECT rc;
+        GetClientRect(hWnd, &rc);
+
+        POINT centerClient = { (rc.right + rc.left) / 2, (rc.top + rc.bottom) / 2 };
+		int cursorX = GET_X_LPARAM(lParam); 
+		int cursorY = GET_Y_LPARAM(lParam);
+
+        POINT centerScreen = centerClient;
+        ClientToScreen(hWnd, &centerScreen);
+        SetCursorPos(centerScreen.x, centerScreen.y);
+
+        int dx = centerClient.x -  cursorX;
+        int dy = centerClient.y - cursorY ;
+        if (dx != 0 || dy != 0) {
+            graphics->rotate(dx, dy);
         }
         break;
     }

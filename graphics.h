@@ -36,6 +36,8 @@ public:
     void setMoveUp(bool move);
     void setMoveDown(bool move);
 
+    void rotate(int mouseDeltaX, int mouseDeltaY);
+
 private:
     // forbid constructors for fabric pattern and DirectX reasons
     Graphics() = default;
@@ -89,6 +91,9 @@ private:
 
     // movement speed
     const float moveSpeed = 5.0f;
+    
+    // mouse sensitivity
+    const float sensitivity = 0.1f;
 
     // last frame timestamp
     DWORD lastFrame = timeGetTime();
