@@ -1,12 +1,14 @@
-#include <optional>
 #include <vector>
+#include <string>
 #include <d3d11_1.h>
-#include <d3dcompiler.h>
 #include <directxcolors.h>
 #include <chrono>
+#include <cmath>
+#include <tuple>
 
 #include "graphics.h"
 #include "camera.h"
+#include "Shader.h"
 
 
 std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
@@ -139,6 +141,32 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
     if (FAILED(hr))
         return nullptr;
 
+    // Define the input layout
+    D3D11_INPUT_ELEMENT_DESC simpleLayout[] =
+    {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+    };
+    Shader simple(graphics);
+    simple.MakeShaders(L"simple.fx", simpleLayout, 2);
+    graphics->simpleVertexShader = simple.vertexShader();
+    graphics->simplePixelShader = simple.pixelShader();
+
+    // Define the input layout
+    D3D11_INPUT_ELEMENT_DESC brightLayout[] =
+    {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 28, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+    };
+    Shader bright(graphics);
+    bright.MakeShaders(L"brightness.fx", brightLayout, 2);
+    graphics->brightnessVertexShader = bright.vertexShader();
+    graphics->brightnessPixelShader = bright.pixelShader();
+
+    if (!graphics->CreateRenderTargetTexture(width, height, graphics))
+        return nullptr; 
+
     // Create a render target view
     ID3D11Texture2D* pBackBuffer = nullptr;
     hr = graphics->swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&pBackBuffer));
@@ -163,97 +191,80 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
     vp.TopLeftY = 0;
     graphics->context->RSSetViewports(1, &vp);
 
+
     graphics->initGeometry();
 
     return graphics;
 }
 
-//--------------------------------------------------------------------------------------
-// Helper for compiling shaders with D3DCompile
-//
-// With VS 11, we could load up prebuilt .cso files instead...
-//--------------------------------------------------------------------------------------
-HRESULT Graphics::CompileShaderFromFile(const WCHAR* szFileName, LPCSTR szEntryPoint, LPCSTR szShaderModel, ID3DBlob** ppBlobOut) {
-    HRESULT hr = S_OK;
+bool Graphics::CreateRenderTargetTexture(UINT width, UINT height, std::shared_ptr<Graphics> graphics)
+{
+    // Setup render target texture
+    D3D11_TEXTURE2D_DESC td;
+    ZeroMemory(&td, sizeof(td));
+    td.Width = width;
+    td.Height = height;
+    td.MipLevels = 1;
+    td.ArraySize = 1;
+    td.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+    td.SampleDesc.Count = 1;
+    td.SampleDesc.Quality = 0;
+    td.Usage = D3D11_USAGE_DEFAULT;
+    td.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+    td.CPUAccessFlags = 0;
 
-    DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
-#ifdef _DEBUG
-    // Set the D3DCOMPILE_DEBUG flag to embed debug information in the shaders.
-    // Setting this flag improves the shader debugging experience, but still allows 
-    // the shaders to be optimized and to run exactly the way they will run in 
-    // the release configuration of this program.
-    dwShaderFlags |= D3DCOMPILE_DEBUG;
+    ID3D11Texture2D* rnd_target_tex_wh = nullptr;
 
-    // Disable optimizations to further improve shader debugging
-    dwShaderFlags |= D3DCOMPILE_SKIP_OPTIMIZATION;
-#endif
+    auto hr = graphics->device->CreateTexture2D(&td, NULL, &rnd_target_tex_wh);
+    if (FAILED(hr))
+        return false;
 
-    ID3DBlob* pErrorBlob = nullptr;
-    hr = D3DCompileFromFile(szFileName, nullptr, nullptr, szEntryPoint, szShaderModel,
-        dwShaderFlags, 0, ppBlobOut, &pErrorBlob);
-    if (FAILED(hr)) {
-        if (pErrorBlob) {
-            OutputDebugStringA(reinterpret_cast<const char*>(pErrorBlob->GetBufferPointer()));
-            pErrorBlob->Release();
-        }
-        return hr;
-    }
-    if (pErrorBlob) pErrorBlob->Release();
+    // Setup the description of the render target view.
+    D3D11_RENDER_TARGET_VIEW_DESC rtvd;
 
-    return S_OK;
+    rtvd.Format = td.Format;
+    rtvd.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+    rtvd.Texture2D.MipSlice = 0;
+
+    hr = graphics->device->CreateRenderTargetView(rnd_target_tex_wh, &rtvd, &graphics->baseTextureRTV);
+    if (FAILED(hr))
+        return false;
+
+    rnd_target_tex_wh->Release();
+
+    // Create the sample state
+    D3D11_SAMPLER_DESC sampDesc;
+    ZeroMemory(&sampDesc, sizeof(sampDesc));
+    sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+    sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+    sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+    sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+    sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+    sampDesc.MinLOD = 0;
+    sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
+    hr = graphics->device->CreateSamplerState(&sampDesc, &graphics->samplerState);
+    if (FAILED(hr))
+        return false;
+
+    // Setup the description of the shader resource view.
+    D3D11_SHADER_RESOURCE_VIEW_DESC srvd;
+    srvd.Format = td.Format;
+    srvd.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+    srvd.Texture2D.MostDetailedMip = 0;
+    srvd.Texture2D.MipLevels = 1;
+
+    ID3D11ShaderResourceView* baseSRV = nullptr;
+    // Create the shader resource view.
+    hr = graphics->device->CreateShaderResourceView(rnd_target_tex_wh, &srvd, &baseSRV);
+    if (FAILED(hr))
+        return false;
+
+    return true;
 }
 
-void Graphics::initGeometry() {
-    // Compile the vertex shader
-    ID3DBlob* pVSBlob = nullptr;
-    auto hr = CompileShaderFromFile(L"simple.fx", "VS", "vs_4_0", &pVSBlob);
-    if (FAILED(hr)) {
-        MessageBox(nullptr,
-            L"The FX file cannot be compiled.  Please run this executable from the directory that contains the FX file.", L"Error", MB_OK);
-        return;
-    }
 
-    // Create the vertex shader
-    hr = device->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), nullptr, &vertexShader);
-    if (FAILED(hr)) {
-        pVSBlob->Release();
-        return;
-    }
-
-    // Define the input layout
-    D3D11_INPUT_ELEMENT_DESC layout[] =
-    {
-        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-    };
-    UINT numElements = ARRAYSIZE(layout);
-
-    // Create the input layout
-    hr = device->CreateInputLayout(layout, numElements, pVSBlob->GetBufferPointer(),
-        pVSBlob->GetBufferSize(), &vertexLayout);
-
-    if (FAILED(hr))
-        return;
-
-    // Set the input layout
-    context->IASetInputLayout(vertexLayout);
-
-    // Compile the pixel shader
-    ID3DBlob* pPSBlob = nullptr;
-    hr = CompileShaderFromFile(L"simple.fx", "PS", "ps_4_0", &pPSBlob);
-    if (FAILED(hr)) {
-        MessageBox(nullptr,
-            L"The FX file cannot be compiled.  Please run this executable from the directory that contains the FX file.", L"Error", MB_OK);
-        return;
-    }
-
-    // Create the pixel shader
-    hr = device->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), nullptr, &pixelShader);
-    pPSBlob->Release();
-
-    if (FAILED(hr))
-        return;
-
+void Graphics::initGeometry(){
+    
     // Create vertex buffer
     SimpleVertex vertices[] =
     {
@@ -277,7 +288,7 @@ void Graphics::initGeometry() {
     D3D11_SUBRESOURCE_DATA InitData;
     ZeroMemory(&InitData, sizeof(InitData));
     InitData.pSysMem = vertices;
-    hr = device->CreateBuffer(&bd, &InitData, &vertexBuffer);
+    auto hr = device->CreateBuffer(&bd, &InitData, &vertexBuffer);
     if (FAILED(hr))
         return;
 
@@ -376,7 +387,7 @@ void Graphics::render() {
     cb.mWorld = XMMatrixTranspose(world);
     cb.mView = XMMatrixTranspose(camera.view());
     cb.mProjection = XMMatrixTranspose(camera.projection());
-    cb.mTranslation = XMMatrixTranslation(.0f, 0.2f, .0f);
+    cb.mTranslation = XMMatrixTranslation(.0f, 5 * sin(time), .0f);
 #ifdef _DEBUG
     annotation->BeginEvent(L"UpdConstBuffer");
 #endif
@@ -389,9 +400,9 @@ void Graphics::render() {
 #ifdef _DEBUG
     annotation->BeginEvent(L"DrawTriangle");
 #endif
-    context->VSSetShader(vertexShader, nullptr, 0);
+    context->VSSetShader(simple.vertexShader(), nullptr, 0);
     context->VSSetConstantBuffers(0, 1, &constBuffer);
-    context->PSSetShader(pixelShader, nullptr, 0);
+    context->PSSetShader(simple.pixelShader(), nullptr, 0);
     context->DrawIndexed(36, 0, 0);
 #ifdef _DEBUG
     annotation->EndEvent();
@@ -402,10 +413,9 @@ void Graphics::render() {
 
 void Graphics::cleanup() {
     if (renderTargetView) renderTargetView->Release();
-    if (vertexShader) vertexShader->Release();
-    if (pixelShader) pixelShader->Release();
+    simple.cleanup();
+    bright.cleanup();
     if (vertexBuffer) vertexBuffer->Release();
-    if (vertexLayout) vertexLayout->Release();
     if (indexBuffer) indexBuffer->Release();
     if (constBuffer) constBuffer->Release();
     if (swapChain1) swapChain1->Release();
@@ -437,24 +447,22 @@ HRESULT Graphics::resizeBackbuffer(UINT width, UINT height) {
     camera.setAspectRatio(width / (FLOAT)height);
 
     context->OMSetRenderTargets(ARRAYSIZE(nullViews), nullViews, nullptr);
-    renderTargetView->Release();
+    //renderTargetView->Release();
     context->Flush();
 
     hr = swapChain->ResizeBuffers(1, width, height, DXGI_FORMAT_R8G8B8A8_UNORM, 0);
-    if (FAILED(hr)) {
+    if (FAILED(hr))
         return hr;
-    }
 
     ID3D11Texture2D* backBuffer = nullptr;
     hr = swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&backBuffer));
-    if (FAILED(hr)) {
+    if (FAILED(hr))
         return hr;
-    }
 
     hr = device->CreateRenderTargetView(backBuffer, nullptr, &renderTargetView);
-    if (FAILED(hr)) {
+    if (FAILED(hr))
         return hr;
-    }
+ 
     backBuffer->Release();
 
     CD3D11_VIEWPORT viewPort(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height));
@@ -474,4 +482,3 @@ void Graphics::setMoveDown(bool move) { moveDown = move; }
 void Graphics::rotate(int mouseDeltaX, int mouseDeltaY) {
     camera.rotate(mouseDeltaX * sensitivity, mouseDeltaY * sensitivity);
 }
-

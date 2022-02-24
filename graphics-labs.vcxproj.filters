@@ -25,6 +25,9 @@
       <Filter>Window</Filter>
     </ClCompile>
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="Shader.cpp">
+      <Filter>Graphics</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="camera.h">
@@ -36,6 +39,9 @@
     <ClInclude Include="window.h">
       <Filter>Window</Filter>
     </ClInclude>
+    <ClInclude Include="Shader.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="simple_ps.hlsl">
@@ -45,6 +51,15 @@
       <Filter>Shader</Filter>
     </FxCompile>
     <FxCompile Include="simple.fx">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="brightness.fx">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="brightness_PS.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="brightness_VS.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
   </ItemGroup>

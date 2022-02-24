@@ -7,6 +7,7 @@
 #include <directxmath.h>
 
 #include "camera.h"
+#include "shader.h"
 
 using namespace DirectX;
 
@@ -17,8 +18,8 @@ public:
 
     void initGeometry();
 
-    // compile shader
-    static HRESULT CompileShaderFromFile(const WCHAR* szFileName, LPCSTR szEntryPoint, LPCSTR szShaderModel, ID3DBlob** ppBlobOut);
+    ID3D11Device* getDevice() const { return device; }
+    ID3D11DeviceContext* getContext() const { return context; }
 
     // render the frame
     void render();
@@ -39,6 +40,8 @@ public:
     void rotate(int mouseDeltaX, int mouseDeltaY);
 
 private:
+    bool CreateRenderTargetTexture(UINT width, UINT height, std::shared_ptr<Graphics> graphics);
+
     // forbid constructors for fabric pattern and DirectX reasons
     Graphics() = default;
     Graphics& operator=(Graphics const&) = delete;
@@ -50,12 +53,18 @@ private:
     ID3D11DeviceContext1* context1 = nullptr;
     IDXGISwapChain* swapChain = nullptr;
     IDXGISwapChain1* swapChain1 = nullptr;
+
     ID3D11RenderTargetView* renderTargetView = nullptr;
+    ID3D11RenderTargetView* baseTextureRTV = nullptr;
+    ID3D11SamplerState* samplerState = nullptr;
 
     //------------//
-    ID3D11VertexShader* vertexShader = nullptr;
-    ID3D11PixelShader* pixelShader = nullptr;
-    ID3D11InputLayout* vertexLayout = nullptr;
+    ID3D11VertexShader* simpleVertexShader = nullptr;
+    ID3D11PixelShader* simplePixelShader = nullptr;
+
+    ID3D11VertexShader* brightnessVertexShader = nullptr;
+    ID3D11PixelShader* brightnessPixelShader = nullptr;
+
     ID3D11Buffer* vertexBuffer = nullptr;
     ID3D11Buffer* indexBuffer = nullptr;
     ID3D11Buffer* constBuffer = nullptr;
@@ -78,6 +87,8 @@ private:
 
     XMMATRIX world;
     Camera camera;
+
+    Shader simple, bright;
 
     std::chrono::system_clock::time_point start;
 
