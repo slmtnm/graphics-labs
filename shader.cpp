@@ -3,10 +3,6 @@
 #include "graphics.h"
 #include "Shader.h"
 
-void Shader::SetGraphicsPtr(std::shared_ptr<Graphics> ngraphics)
-{
-    graphics = ngraphics;
-}
 
 //--------------------------------------------------------------------------------------
 // Helper for compiling shaders with D3DCompile
@@ -43,7 +39,7 @@ HRESULT Shader::CompileShaderFromFile(const WCHAR* szFileName, LPCSTR szEntryPoi
     return S_OK;
 }
 
-void Shader::MakeShaders(LPCWSTR shaderName, D3D11_INPUT_ELEMENT_DESC* layout, int numElementsLayout) {
+void Shader::makeShaders(LPCWSTR shaderName, D3D11_INPUT_ELEMENT_DESC* layout, int numElementsLayout) {
     // Compile the vertex shader
     ID3DBlob* pVSBlob = nullptr;
     auto hr = CompileShaderFromFile(shaderName, "VS", "vs_4_0", &pVSBlob);
@@ -54,24 +50,20 @@ void Shader::MakeShaders(LPCWSTR shaderName, D3D11_INPUT_ELEMENT_DESC* layout, i
     }
 
     // Create the vertex shader
+    auto graphics = Graphics::get();
     hr = graphics->getDevice()->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), nullptr, &_vertexShader);
     if (FAILED(hr)) {
         pVSBlob->Release();
         return;
     }
 
-
     // Create the input layout
-    ID3D11InputLayout* vertexLayout = nullptr;
     hr = graphics->getDevice()->CreateInputLayout(
         layout, numElementsLayout, pVSBlob->GetBufferPointer(),
-        pVSBlob->GetBufferSize(), &vertexLayout);
+        pVSBlob->GetBufferSize(), &_vertexLayout);
 
     if (FAILED(hr))
         return;
-
-    // Set the input layout
-    graphics->getContext()->IASetInputLayout(vertexLayout);
 
     // Compile the pixel shader
     ID3DBlob* pPSBlob = nullptr;
@@ -100,6 +92,11 @@ ID3D11PixelShader* Shader::pixelShader() const
     return _pixelShader;
 }
 
+ID3D11InputLayout* Shader::vertexLayout() const
+{
+    return _vertexLayout;
+}
+
 void Shader::cleanup()
 {
     if (_vertexShader)
@@ -107,4 +104,7 @@ void Shader::cleanup()
 
     if (_pixelShader)
         _pixelShader->Release();
+
+    if (_vertexLayout)
+        _vertexLayout->Release();
 }

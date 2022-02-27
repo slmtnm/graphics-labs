@@ -9,14 +9,18 @@
 #include "camera.h"
 #include "shader.h"
 
+
 using namespace DirectX;
+
+class Primitive;
 
 class Graphics {
 public:
     // factory method
     static std::shared_ptr<Graphics> init(HWND hWnd);
+    static std::shared_ptr<Graphics> get();
 
-    void initGeometry();
+    bool initGeometry();
 
     ID3D11Device* getDevice() const { return device; }
     ID3D11DeviceContext* getContext() const { return context; }
@@ -40,7 +44,11 @@ public:
     void rotate(int mouseDeltaX, int mouseDeltaY);
 
 private:
-    bool CreateRenderTargetTexture(UINT width, UINT height, std::shared_ptr<Graphics> graphics);
+    bool CreateRenderTargetTexture(UINT width, UINT height, ID3D11RenderTargetView*& rtv,
+        ID3D11SamplerState*& samplerState, ID3D11ShaderResourceView*& srv);
+    void setViewport(UINT width, UINT height);
+
+    static std::shared_ptr<Graphics> inst;
 
     // forbid constructors for fabric pattern and DirectX reasons
     Graphics() = default;
@@ -56,19 +64,10 @@ private:
 
     ID3D11RenderTargetView* renderTargetView = nullptr;
     ID3D11RenderTargetView* baseTextureRTV = nullptr;
+    ID3D11ShaderResourceView* baseSRV = nullptr;
     ID3D11SamplerState* samplerState = nullptr;
 
     //------------//
-    ID3D11VertexShader* simpleVertexShader = nullptr;
-    ID3D11PixelShader* simplePixelShader = nullptr;
-
-    ID3D11VertexShader* brightnessVertexShader = nullptr;
-    ID3D11PixelShader* brightnessPixelShader = nullptr;
-
-    ID3D11Buffer* vertexBuffer = nullptr;
-    ID3D11Buffer* indexBuffer = nullptr;
-    ID3D11Buffer* constBuffer = nullptr;
-
     ID3DUserDefinedAnnotation* annotation = nullptr;
 
     struct SimpleVertex
@@ -89,6 +88,7 @@ private:
     Camera camera;
 
     Shader simple, bright;
+    std::unique_ptr<Primitive> cube;
 
     std::chrono::system_clock::time_point start;
 

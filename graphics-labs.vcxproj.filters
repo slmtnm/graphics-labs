@@ -13,6 +13,9 @@
     <Filter Include="Window">
       <UniqueIdentifier>{252a0ac4-e4cd-4219-8437-c1dcfec57fe1}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Graphics\Primitive">
+      <UniqueIdentifier>{9a3a4293-9804-4137-8650-687a64b4233b}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="camera.cpp">
@@ -28,6 +31,7 @@
     <ClCompile Include="Shader.cpp">
       <Filter>Graphics</Filter>
     </ClCompile>
+    <ClCompile Include="primitive.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="camera.h">
@@ -42,6 +46,7 @@
     <ClInclude Include="Shader.h">
       <Filter>Graphics</Filter>
     </ClInclude>
+    <ClInclude Include="primitive.h" />
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="simple_ps.hlsl">

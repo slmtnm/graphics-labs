@@ -8,11 +8,16 @@
 
 #include "graphics.h"
 #include "camera.h"
-#include "Shader.h"
+#include "shader.h"
+#include "primitive.h"
+
+
+std::shared_ptr<Graphics> Graphics::inst(new Graphics);
 
 
 std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
-    std::shared_ptr<Graphics> graphics(new Graphics);
+    // alias
+    auto graphics = inst;
 
     graphics->start = std::chrono::system_clock::now();
 
@@ -147,25 +152,21 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
     };
-    Shader simple(graphics);
-    simple.MakeShaders(L"simple.fx", simpleLayout, 2);
-    graphics->simpleVertexShader = simple.vertexShader();
-    graphics->simplePixelShader = simple.pixelShader();
+
+    graphics->simple.makeShaders(L"simple.fx", simpleLayout, 2);
 
     // Define the input layout
-    D3D11_INPUT_ELEMENT_DESC brightLayout[] =
+    /*D3D11_INPUT_ELEMENT_DESC brightLayout[] =
     {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 28, D3D11_INPUT_PER_VERTEX_DATA, 0 }
     };
-    Shader bright(graphics);
-    bright.MakeShaders(L"brightness.fx", brightLayout, 2);
-    graphics->brightnessVertexShader = bright.vertexShader();
-    graphics->brightnessPixelShader = bright.pixelShader();
 
-    if (!graphics->CreateRenderTargetTexture(width, height, graphics))
-        return nullptr; 
+    graphics->bright.makeShaders(L"brightness.fx", brightLayout, 3);*/
+
+    //if (!graphics->CreateRenderTargetTexture(width, height, inst->baseTextureRTV, inst->samplerState, inst->baseSRV))
+    //    return nullptr; 
 
     // Create a render target view
     ID3D11Texture2D* pBackBuffer = nullptr;
@@ -179,7 +180,20 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
         return nullptr;
 
     graphics->context->OMSetRenderTargets(1, &graphics->renderTargetView, nullptr);
+    graphics->setViewport(width, height);
+    if (!graphics->initGeometry())
+        return nullptr;
 
+    return graphics;
+}
+
+std::shared_ptr<Graphics> Graphics::get()
+{
+    return inst;
+}
+
+void Graphics::setViewport(UINT width, UINT height)
+{
     // Setup the viewport
     D3D11_VIEWPORT vp;
     ZeroMemory(&vp, sizeof(D3D11_VIEWPORT));
@@ -189,15 +203,13 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
     vp.MaxDepth = 1.0f;
     vp.TopLeftX = 0;
     vp.TopLeftY = 0;
-    graphics->context->RSSetViewports(1, &vp);
-
-
-    graphics->initGeometry();
-
-    return graphics;
+    inst->context->RSSetViewports(1, &vp);
 }
 
-bool Graphics::CreateRenderTargetTexture(UINT width, UINT height, std::shared_ptr<Graphics> graphics)
+bool Graphics::CreateRenderTargetTexture(
+    UINT width, UINT height, ID3D11RenderTargetView*& rtv,
+    ID3D11SamplerState*& samplerState,
+    ID3D11ShaderResourceView*& srv)
 {
     // Setup render target texture
     D3D11_TEXTURE2D_DESC td;
@@ -213,9 +225,9 @@ bool Graphics::CreateRenderTargetTexture(UINT width, UINT height, std::shared_pt
     td.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
     td.CPUAccessFlags = 0;
 
-    ID3D11Texture2D* rnd_target_tex_wh = nullptr;
+    ID3D11Texture2D* rndTargetTexWH = nullptr;
 
-    auto hr = graphics->device->CreateTexture2D(&td, NULL, &rnd_target_tex_wh);
+    auto hr = inst->device->CreateTexture2D(&td, NULL, &rndTargetTexWH);
     if (FAILED(hr))
         return false;
 
@@ -226,11 +238,11 @@ bool Graphics::CreateRenderTargetTexture(UINT width, UINT height, std::shared_pt
     rtvd.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
     rtvd.Texture2D.MipSlice = 0;
 
-    hr = graphics->device->CreateRenderTargetView(rnd_target_tex_wh, &rtvd, &graphics->baseTextureRTV);
+    hr = inst->device->CreateRenderTargetView(rndTargetTexWH, &rtvd, &rtv);
     if (FAILED(hr))
         return false;
 
-    rnd_target_tex_wh->Release();
+    rndTargetTexWH->Release();
 
     // Create the sample state
     D3D11_SAMPLER_DESC sampDesc;
@@ -242,7 +254,7 @@ bool Graphics::CreateRenderTargetTexture(UINT width, UINT height, std::shared_pt
     sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
     sampDesc.MinLOD = 0;
     sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
-    hr = graphics->device->CreateSamplerState(&sampDesc, &graphics->samplerState);
+    hr = inst->device->CreateSamplerState(&sampDesc, &samplerState);
     if (FAILED(hr))
         return false;
 
@@ -253,9 +265,8 @@ bool Graphics::CreateRenderTargetTexture(UINT width, UINT height, std::shared_pt
     srvd.Texture2D.MostDetailedMip = 0;
     srvd.Texture2D.MipLevels = 1;
 
-    ID3D11ShaderResourceView* baseSRV = nullptr;
     // Create the shader resource view.
-    hr = graphics->device->CreateShaderResourceView(rnd_target_tex_wh, &srvd, &baseSRV);
+    hr = inst->device->CreateShaderResourceView(rndTargetTexWH, &srvd, &srv);
     if (FAILED(hr))
         return false;
 
@@ -263,7 +274,7 @@ bool Graphics::CreateRenderTargetTexture(UINT width, UINT height, std::shared_pt
 }
 
 
-void Graphics::initGeometry(){
+bool Graphics::initGeometry() {
     
     // Create vertex buffer
     SimpleVertex vertices[] =
@@ -277,25 +288,6 @@ void Graphics::initGeometry(){
         { XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) },
         { XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f) },
     };
-
-    // Init vertex buffer
-    D3D11_BUFFER_DESC bd;
-    ZeroMemory(&bd, sizeof(bd));
-    bd.Usage = D3D11_USAGE_DEFAULT;
-    bd.ByteWidth = sizeof(vertices);
-    bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-    bd.CPUAccessFlags = 0;
-    D3D11_SUBRESOURCE_DATA InitData;
-    ZeroMemory(&InitData, sizeof(InitData));
-    InitData.pSysMem = vertices;
-    auto hr = device->CreateBuffer(&bd, &InitData, &vertexBuffer);
-    if (FAILED(hr))
-        return;
-
-    // Set vertex buffer
-    UINT stride = sizeof(SimpleVertex);
-    UINT offset = 0;
-    context->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
 
     // Create index buffer
     UINT indices[] =
@@ -314,42 +306,20 @@ void Graphics::initGeometry(){
 
         2,7,6,
         3,7,2,
-
+        
         6,4,5,
         7,4,6,
     };
 
-    // Init index buffer
-    bd.Usage = D3D11_USAGE_DEFAULT;
-    bd.ByteWidth = sizeof(indices);
-    bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
-    bd.CPUAccessFlags = 0;
+    cube = PrimitiveFactory::create<SimpleVertex>(vertices, 8, indices, 36, simple);
+    if (!cube)
+        return false;
 
-    //ZeroMemory( &InitData, sizeof(InitData) );
-    InitData.pSysMem = indices;
-    hr = device->CreateBuffer(&bd, &InitData, &indexBuffer);
-    if (FAILED(hr)) {
-        return;
-    }
-
-    // Set index buffer
-    context->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R32_UINT, 0);
-
-    // Set primitive topology
-    context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-
-    // Create the constant buffer
-    bd.Usage = D3D11_USAGE_DEFAULT;
-    bd.ByteWidth = sizeof(ConstantBuffer);
-    bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-    bd.CPUAccessFlags = 0;
-    hr = device->CreateBuffer(&bd, nullptr, &constBuffer);
-    if (FAILED(hr)) {
-        return;
-    }
+    cube->addConstBuffer(sizeof(ConstantBuffer));
 
     // Initialize the world matrix
     world = XMMatrixIdentity();
+    return true;
 }
 
 
@@ -388,26 +358,24 @@ void Graphics::render() {
     cb.mView = XMMatrixTranspose(camera.view());
     cb.mProjection = XMMatrixTranspose(camera.projection());
     cb.mTranslation = XMMatrixTranslation(.0f, 5 * sin(time), .0f);
+
+
 #ifdef _DEBUG
     annotation->BeginEvent(L"UpdConstBuffer");
 #endif
-    context->UpdateSubresource(constBuffer, 0, nullptr, &cb, 0, 0);
+    cube->updateConstBuffer<ConstantBuffer>(0, cb);
 #ifdef _DEBUG
     annotation->EndEvent();
 #endif
 
-    // Render a triangle
+    // Render a cube
 #ifdef _DEBUG
-    annotation->BeginEvent(L"DrawTriangle");
+    annotation->BeginEvent(L"DrawCube");
 #endif
-    context->VSSetShader(simple.vertexShader(), nullptr, 0);
-    context->VSSetConstantBuffers(0, 1, &constBuffer);
-    context->PSSetShader(simple.pixelShader(), nullptr, 0);
-    context->DrawIndexed(36, 0, 0);
+    cube->render(simple);
 #ifdef _DEBUG
     annotation->EndEvent();
 #endif
-
     swapChain->Present(0, 0);
 }
 
@@ -415,9 +383,7 @@ void Graphics::cleanup() {
     if (renderTargetView) renderTargetView->Release();
     simple.cleanup();
     bright.cleanup();
-    if (vertexBuffer) vertexBuffer->Release();
-    if (indexBuffer) indexBuffer->Release();
-    if (constBuffer) constBuffer->Release();
+    cube->cleanup();
     if (swapChain1) swapChain1->Release();
     if (swapChain) swapChain->Release();
     if (annotation) annotation->Release();

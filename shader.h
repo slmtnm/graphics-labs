@@ -9,22 +9,20 @@ class Shader
 {
 public:
 	Shader() = default;
-	Shader(std::shared_ptr<Graphics> graphics) : graphics(graphics) {}
-	void SetGraphicsPtr(std::shared_ptr<Graphics> ngraphics);
 
 	ID3D11VertexShader* vertexShader() const;
 	ID3D11PixelShader* pixelShader() const;
+	ID3D11InputLayout* vertexLayout() const;
 
-	void MakeShaders(LPCWSTR shader_name, D3D11_INPUT_ELEMENT_DESC* layout, int numElementsLayout);
+	void makeShaders(LPCWSTR shaderName, D3D11_INPUT_ELEMENT_DESC* layout, int numElementsLayout);
 
 	void cleanup();
 
 private:
 	static HRESULT CompileShaderFromFile(const WCHAR* szFileName, LPCSTR szEntryPoint, LPCSTR szShaderModel, ID3DBlob** ppBlobOut);
 
-	std::shared_ptr<Graphics> graphics;
-
 	ID3D11VertexShader* _vertexShader;
 	ID3D11PixelShader* _pixelShader;
+	ID3D11InputLayout* _vertexLayout;
 };
 

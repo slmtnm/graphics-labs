@@ -154,12 +154,14 @@
     <ClCompile Include="camera.cpp" />
     <ClCompile Include="graphics.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="primitive.cpp" />
     <ClCompile Include="Shader.cpp" />
     <ClCompile Include="window.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="camera.h" />
     <ClInclude Include="graphics.h" />
+    <ClInclude Include="primitive.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="window.h" />
   </ItemGroup>
