@@ -276,9 +276,7 @@ bool Graphics::CreateRenderTargetTexture(
     return true;
 }
 
-
-bool Graphics::initGeometry() {
-    
+bool Graphics::createCube() {
     // Create vertex buffer
     SimpleVertex vertices[] =
     {
@@ -309,7 +307,7 @@ bool Graphics::initGeometry() {
 
         2,7,6,
         3,7,2,
-        
+
         6,4,5,
         7,4,6,
     };
@@ -322,8 +320,37 @@ bool Graphics::initGeometry() {
 
     // Initialize the world matrix
     world = XMMatrixIdentity();
+}
 
-    return true;
+
+bool Graphics::createScreenQuad() {
+    // Create vertex buffer
+    TextureVertex vertices[] =
+    {
+        { XMFLOAT3(-1.0f, -1.0f, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f), XMFLOAT2(0.0f, 0.0f)},
+        { XMFLOAT3(1.0f, -1.0f, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f), XMFLOAT2(1.0f, 0.0f)},
+        { XMFLOAT3(1.0f, 1.0f, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f), XMFLOAT2(1.0f, 1.0f)},
+        { XMFLOAT3(-1.0f, 1.0f, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f), XMFLOAT2(0.0f, 1.0f)},
+    };
+
+    // Create index buffer
+    UINT indices[] =
+    {
+        0, 1, 2,
+        0, 2, 3
+    };
+
+    quad = PrimitiveFactory::create<TextureVertex>(vertices, 4, indices, 6);
+    if (!quad)
+        return false;
+}
+
+
+bool Graphics::initGeometry() {
+    bool success = true;
+    success &= createCube();
+    success &= createScreenQuad();
+    return success;
 }
 
 

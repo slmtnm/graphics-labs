@@ -48,6 +48,9 @@ private:
         ID3D11SamplerState*& samplerState, ID3D11ShaderResourceView*& srv);
     void setViewport(UINT width, UINT height);
 
+    bool createCube();
+    bool createScreenQuad();
+
     static std::shared_ptr<Graphics> inst;
 
     // forbid constructors for fabric pattern and DirectX reasons
@@ -76,6 +79,13 @@ private:
         XMFLOAT4 Color;
     };
 
+    struct TextureVertex
+    {
+        XMFLOAT3 Pos;
+        XMFLOAT4 Color;
+        XMFLOAT2 Tex;
+    };
+
     struct ConstantBuffer
     {
         XMMATRIX mWorld;
@@ -87,6 +97,7 @@ private:
 
     Shader simple, bright;
     std::unique_ptr<Primitive> cube;
+    std::unique_ptr<Primitive> quad;
     XMMATRIX world;
 
     std::chrono::system_clock::time_point start;
