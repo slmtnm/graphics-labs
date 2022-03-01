@@ -178,8 +178,12 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
     if (FAILED(hr))
         return nullptr;
 
+    //ID3D11RenderTargetView* views[] = { graphics->renderTargetView, graphics->baseTextureRTV };
+    //graphics->context->OMSetRenderTargets(2, views, nullptr);
+    graphics->context->OMSetRenderTargets(1, &graphics->baseTextureRTV, nullptr);
     graphics->context->OMSetRenderTargets(1, &graphics->renderTargetView, nullptr);
     graphics->setViewport(width, height);
+
     if (!graphics->initGeometry())
         return nullptr;
 
@@ -386,6 +390,10 @@ void Graphics::cleanup() {
     if (swapChain1) swapChain1->Release();
     if (swapChain) swapChain->Release();
     if (annotation) annotation->Release();
+
+    if (baseTextureRTV) baseTextureRTV->Release();
+    if (baseSRV) baseSRV->Release();
+    if (samplerState) samplerState->Release();
 
     if (context) context->ClearState();
     if (context1) context1->Release();
