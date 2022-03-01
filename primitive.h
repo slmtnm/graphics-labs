@@ -24,13 +24,10 @@ public:
 
 private:
     template<typename VertexType>
-    bool create(VertexType* vertices, UINT vCount, UINT* indices, UINT iCount, Shader const& shader)
+    bool create(VertexType* vertices, UINT vCount, UINT* indices, UINT iCount)
     {
         graphics = Graphics::get();
         this->iCount = iCount;
-
-        // Set the input layout
-        graphics->getContext()->IASetInputLayout(shader.vertexLayout());
 
         // Init vertex buffer
         D3D11_BUFFER_DESC bd;
@@ -47,9 +44,8 @@ private:
             return false;
 
         // Set vertex buffer
-        UINT stride = sizeof(VertexType);
-        UINT offset = 0;
-        graphics->getContext()->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
+        stride = sizeof(VertexType);
+        offset = 0;
 
         // Create index buffer
         // Init index buffer
@@ -65,11 +61,6 @@ private:
             return false;
         }
 
-        // Set index buffer
-        graphics->getContext()->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R32_UINT, 0);
-
-        // Set primitive topology
-        graphics->getContext()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
         return true;
     }
 
@@ -82,6 +73,8 @@ private:
     ID3D11Buffer* indexBuffer = nullptr;
     std::vector<ID3D11Buffer*> constBuffers;
     std::shared_ptr<Graphics> graphics;
+    UINT stride;
+    UINT offset;
 
     friend class PrimitiveFactory;
 };
@@ -91,10 +84,10 @@ class PrimitiveFactory
 {
 public:
     template<typename VertexType>
-    static std::unique_ptr<Primitive> create(VertexType* vertices, UINT vCount, UINT* indices, UINT iCount, Shader const& shader)
+    static std::unique_ptr<Primitive> create(VertexType* vertices, UINT vCount, UINT* indices, UINT iCount)
     {
         auto pr = std::unique_ptr<Primitive>(new Primitive);
-        if (!pr->create(vertices, vCount, indices, iCount, shader))
+        if (!pr->create(vertices, vCount, indices, iCount))
             return nullptr;
         return pr;
     }

@@ -97,6 +97,14 @@ ID3D11InputLayout* Shader::vertexLayout() const
     return _vertexLayout;
 }
 
+void Shader::apply() const
+{
+    auto graphics = Graphics::get();
+    graphics->getContext()->IASetInputLayout(_vertexLayout);
+    graphics->getContext()->VSSetShader(_vertexShader, nullptr, 0);
+    graphics->getContext()->PSSetShader(_pixelShader, nullptr, 0);
+}
+
 void Shader::cleanup()
 {
     if (_vertexShader)

@@ -155,18 +155,17 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
 
     graphics->simple.makeShaders(L"simple.fx", simpleLayout, 2);
 
-    // Define the input layout
-    /*D3D11_INPUT_ELEMENT_DESC brightLayout[] =
+    D3D11_INPUT_ELEMENT_DESC brightLayout[] =
     {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
         { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 28, D3D11_INPUT_PER_VERTEX_DATA, 0 }
     };
 
-    graphics->bright.makeShaders(L"brightness.fx", brightLayout, 3);*/
+    graphics->bright.makeShaders(L"brightness.fx", brightLayout, 3);
 
-    //if (!graphics->CreateRenderTargetTexture(width, height, inst->baseTextureRTV, inst->samplerState, inst->baseSRV))
-    //    return nullptr; 
+    if (!graphics->CreateRenderTargetTexture(width, height, inst->baseTextureRTV, inst->samplerState, inst->baseSRV))
+        return nullptr; 
 
     // Create a render target view
     ID3D11Texture2D* pBackBuffer = nullptr;
@@ -311,7 +310,7 @@ bool Graphics::initGeometry() {
         7,4,6,
     };
 
-    cube = PrimitiveFactory::create<SimpleVertex>(vertices, 8, indices, 36, simple);
+    cube = PrimitiveFactory::create<SimpleVertex>(vertices, 8, indices, 36);
     if (!cube)
         return false;
 
@@ -319,6 +318,7 @@ bool Graphics::initGeometry() {
 
     // Initialize the world matrix
     world = XMMatrixIdentity();
+
     return true;
 }
 
@@ -352,12 +352,11 @@ void Graphics::render() {
 
     auto time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start).count() / 1000.0f;
 
-    world = XMMatrixRotationY(time);
+    world = XMMatrixTranslation(.0f, 0.9 * sin(time), .0f) * XMMatrixRotationY(time);
 
     cb.mWorld = XMMatrixTranspose(world);
     cb.mView = XMMatrixTranspose(camera.view());
     cb.mProjection = XMMatrixTranspose(camera.projection());
-    cb.mTranslation = XMMatrixTranslation(.0f, 5 * sin(time), .0f);
 
 
 #ifdef _DEBUG
@@ -407,6 +406,7 @@ void Graphics::cleanup() {
 }
 
 HRESULT Graphics::resizeBackbuffer(UINT width, UINT height) {
+    /*
     HRESULT hr;
     ID3D11RenderTargetView* nullViews [] = { nullptr };
 
@@ -435,6 +435,7 @@ HRESULT Graphics::resizeBackbuffer(UINT width, UINT height) {
     context->RSSetViewports(1, &viewPort);
 
     context->OMSetRenderTargets(1, &renderTargetView, nullptr);
+    */
     return S_OK;
 }
 

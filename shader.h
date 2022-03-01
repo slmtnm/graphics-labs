@@ -10,6 +10,8 @@ class Shader
 public:
 	Shader() = default;
 
+	void apply() const;
+
 	ID3D11VertexShader* vertexShader() const;
 	ID3D11PixelShader* pixelShader() const;
 	ID3D11InputLayout* vertexLayout() const;

@@ -81,14 +81,13 @@ private:
         XMMATRIX mWorld;
         XMMATRIX mView;
         XMMATRIX mProjection;
-        XMMATRIX mTranslation;
     };
 
-    XMMATRIX world;
     Camera camera;
 
     Shader simple, bright;
     std::unique_ptr<Primitive> cube;
+    XMMATRIX world;
 
     std::chrono::system_clock::time_point start;
 

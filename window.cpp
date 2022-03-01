@@ -115,7 +115,8 @@ LRESULT CALLBACK Window::WndProc(
     {
         UINT width = LOWORD(lParam);
         UINT height = HIWORD(lParam);
-        graphics->resizeBackbuffer(width, height);
+        if (FAILED(graphics->resizeBackbuffer(width, height)))
+            MessageBox(nullptr, L"Failed to resize buffer", L"Critical error", MB_OK);
         break;
     }
     case WM_CLOSE:

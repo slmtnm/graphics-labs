@@ -29,8 +29,12 @@ void Primitive::cleanup()
 
 void Primitive::render(Shader const& shader)
 {
-    graphics->getContext()->VSSetShader(shader.vertexShader(), nullptr, 0);
+    shader.apply();
+    graphics->getContext()->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
+    graphics->getContext()->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R32_UINT, 0);
+
+    // Set primitive topology
+    graphics->getContext()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     graphics->getContext()->VSSetConstantBuffers(0, static_cast<UINT>(constBuffers.size()), &constBuffers[0]);
-    graphics->getContext()->PSSetShader(shader.pixelShader(), nullptr, 0);
     graphics->getContext()->DrawIndexed(iCount, 0, 0);
 }
