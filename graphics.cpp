@@ -164,7 +164,7 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
 
     graphics->bright.makeShaders(L"brightness.fx", brightLayout, 3);
 
-    if (!graphics->CreateRenderTargetTexture(width, height, inst->baseTextureRTV, inst->samplerState, inst->baseSRV))
+    if (!graphics->createRenderTargetTexture(width, height, inst->baseTextureRTV, inst->samplerState, inst->baseSRV))
         return nullptr; 
 
     // Create a render target view
@@ -209,7 +209,7 @@ void Graphics::setViewport(UINT width, UINT height)
     inst->context->RSSetViewports(1, &vp);
 }
 
-bool Graphics::CreateRenderTargetTexture(
+bool Graphics::createRenderTargetTexture(
     UINT width, UINT height, ID3D11RenderTargetView*& rtv,
     ID3D11SamplerState*& samplerState,
     ID3D11ShaderResourceView*& srv)
@@ -320,6 +320,7 @@ bool Graphics::createCube() {
 
     // Initialize the world matrix
     world = XMMatrixIdentity();
+    return true;
 }
 
 
@@ -343,6 +344,7 @@ bool Graphics::createScreenQuad() {
     quad = PrimitiveFactory::create<TextureVertex>(vertices, 4, indices, 6);
     if (!quad)
         return false;
+    return true;
 }
 
 
@@ -354,11 +356,7 @@ bool Graphics::initGeometry() {
 }
 
 
-void Graphics::render() {
-    // Just clear the backbuffer
-    float clearColor[] = { 0.3f, 0.5f, 0.7f, 1.0f };
-    context->ClearRenderTargetView(renderTargetView, clearColor);
-
+void Graphics::prepareForRender() {
     // Camera movement
     XMVECTOR moveDirection = { 0.0f, 0.0f, 0.0f, 0.0f };
     if (moveRight) moveDirection += camera.getRight();
@@ -372,7 +370,7 @@ void Graphics::render() {
     moveDirection *= moveSpeed * deltaTime;
 
     if (XMVectorGetX(XMVector3Length(moveDirection)) > 1e-4) {
-		camera.move(moveDirection);
+        camera.move(moveDirection);
     }
 
     lastFrame = timeGetTime();
@@ -397,6 +395,12 @@ void Graphics::render() {
 #ifdef _DEBUG
     annotation->EndEvent();
 #endif
+}
+
+void Graphics::renderScene(ID3D11RenderTargetView* rtv) {
+    // Just clear the backbuffer
+    float clearColor[] = { 0.3f, 0.5f, 0.7f, 1.0f };
+    context->ClearRenderTargetView(renderTargetView, clearColor);
 
     // Render a cube
 #ifdef _DEBUG
@@ -409,16 +413,25 @@ void Graphics::render() {
     swapChain->Present(0, 0);
 }
 
+
+void Graphics::render() {
+    prepareForRender();
+    renderScene(renderTargetView);
+}
+
 void Graphics::cleanup() {
     if (renderTargetView) renderTargetView->Release();
+    if (baseTextureRTV) baseTextureRTV->Release();
+
     simple.cleanup();
     bright.cleanup();
     cube->cleanup();
+
+    quad->cleanup();
     if (swapChain1) swapChain1->Release();
     if (swapChain) swapChain->Release();
     if (annotation) annotation->Release();
 
-    if (baseTextureRTV) baseTextureRTV->Release();
     if (baseSRV) baseSRV->Release();
     if (samplerState) samplerState->Release();
 
@@ -441,14 +454,17 @@ void Graphics::cleanup() {
 }
 
 HRESULT Graphics::resizeBackbuffer(UINT width, UINT height) {
-    /*
+    
     HRESULT hr;
     ID3D11RenderTargetView* nullViews [] = { nullptr };
 
     camera.setAspectRatio(width / (FLOAT)height);
 
     context->OMSetRenderTargets(ARRAYSIZE(nullViews), nullViews, nullptr);
-    //renderTargetView->Release();
+
+    if (renderTargetView) renderTargetView->Release();
+
+    //if (baseTextureRTV) baseTextureRTV->Release();
     context->Flush();
 
     hr = swapChain->ResizeBuffers(1, width, height, DXGI_FORMAT_R8G8B8A8_UNORM, 0);
@@ -470,7 +486,7 @@ HRESULT Graphics::resizeBackbuffer(UINT width, UINT height) {
     context->RSSetViewports(1, &viewPort);
 
     context->OMSetRenderTargets(1, &renderTargetView, nullptr);
-    */
+    
     return S_OK;
 }
 
