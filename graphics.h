@@ -121,4 +121,6 @@ private:
 
     // last frame timestamp
     DWORD lastFrame = timeGetTime();
+
+    UINT width, height;
 };

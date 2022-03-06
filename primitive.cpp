@@ -27,14 +27,21 @@ void Primitive::cleanup()
         if (buf) buf->Release();
 }
 
-void Primitive::render(Shader const& shader)
+void Primitive::render(Shader const& shader, ID3D11SamplerState* samplerState, ID3D11ShaderResourceView* tex)
 {
     shader.apply();
-    graphics->getContext()->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
-    graphics->getContext()->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R32_UINT, 0);
+    auto ctx = graphics->getContext();
+    ctx->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
+    ctx->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R32_UINT, 0);
 
     // Set primitive topology
-    graphics->getContext()->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    graphics->getContext()->VSSetConstantBuffers(0, static_cast<UINT>(constBuffers.size()), &constBuffers[0]);
-    graphics->getContext()->DrawIndexed(iCount, 0, 0);
+    ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    ctx->VSSetConstantBuffers(0, static_cast<UINT>(constBuffers.size()), constBuffers.data());
+    if (tex && samplerState)
+    {
+        // Set the sampler state in the pixel shader.
+        ctx->PSSetSamplers(0, 1, &samplerState);
+        ctx->PSSetShaderResources(0, 1, &tex);
+    }
+    ctx->DrawIndexed(iCount, 0, 0);
 }

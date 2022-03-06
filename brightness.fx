@@ -22,10 +22,7 @@ struct VS_OUTPUT
 VS_OUTPUT VS(float4 Pos : POSITION, float4 Color : COLOR, float2 Tex : TEXCOORD0)
 {
     VS_OUTPUT output = (VS_OUTPUT)0;
-    output.Pos = mul(output.Pos, Translation);
-    output.Pos = mul(Pos, World);
-    output.Pos = mul(output.Pos, View);
-    output.Pos = mul(output.Pos, Projection);
+    output.Pos = Pos;
     output.Color = Color;
     output.Tex = Tex;
     return output;

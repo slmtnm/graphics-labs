@@ -178,14 +178,11 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
     if (FAILED(hr))
         return nullptr;
 
-    //ID3D11RenderTargetView* views[] = { graphics->renderTargetView, graphics->baseTextureRTV };
-    //graphics->context->OMSetRenderTargets(2, views, nullptr);
-    graphics->context->OMSetRenderTargets(1, &graphics->baseTextureRTV, nullptr);
-    graphics->context->OMSetRenderTargets(1, &graphics->renderTargetView, nullptr);
-    graphics->setViewport(width, height);
-
     if (!graphics->initGeometry())
         return nullptr;
+
+    graphics->width = width;
+    graphics->height = height;
 
     return graphics;
 }
@@ -410,13 +407,26 @@ void Graphics::renderScene(ID3D11RenderTargetView* rtv) {
 #ifdef _DEBUG
     annotation->EndEvent();
 #endif
-    swapChain->Present(0, 0);
+
+#ifdef _DEBUG
+    annotation->BeginEvent(L"DrawScreenQuad");
+#endif
+    quad->render(bright, samplerState, baseSRV);
+#ifdef _DEBUG
+    annotation->EndEvent();
+#endif
 }
 
 
 void Graphics::render() {
     prepareForRender();
+
+    setViewport(width, height);
+    context->OMSetRenderTargets(1, &baseTextureRTV, nullptr);
+    renderScene(baseTextureRTV);
+    context->OMSetRenderTargets(1, &renderTargetView, nullptr);
     renderScene(renderTargetView);
+    swapChain->Present(0, 0);
 }
 
 void Graphics::cleanup() {
@@ -485,7 +495,8 @@ HRESULT Graphics::resizeBackbuffer(UINT width, UINT height) {
     CD3D11_VIEWPORT viewPort(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height));
     context->RSSetViewports(1, &viewPort);
 
-    context->OMSetRenderTargets(1, &renderTargetView, nullptr);
+    this->width = width;
+    this->height = height;
     
     return S_OK;
 }

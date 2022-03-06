@@ -20,7 +20,7 @@ public:
         graphics->getContext()->UpdateSubresource(constBuffers[cbufIdx], cbufIdx, nullptr, &cb, 0, 0);
     }
 
-    void render(Shader const& shader);
+    void render(Shader const& shader, ID3D11SamplerState* samplerState = nullptr, ID3D11ShaderResourceView* tex = nullptr);
 
 private:
     template<typename VertexType>
