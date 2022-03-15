@@ -99,10 +99,10 @@ ID3D11InputLayout* Shader::vertexLayout() const
 
 void Shader::apply() const
 {
-    auto graphics = Graphics::get();
-    graphics->getContext()->IASetInputLayout(_vertexLayout);
-    graphics->getContext()->VSSetShader(_vertexShader, nullptr, 0);
-    graphics->getContext()->PSSetShader(_pixelShader, nullptr, 0);
+    auto ctx = Graphics::get()->getContext();
+    ctx->IASetInputLayout(_vertexLayout);
+    ctx->VSSetShader(_vertexShader, nullptr, 0);
+    ctx->PSSetShader(_pixelShader, nullptr, 0);
 }
 
 void Shader::cleanup()

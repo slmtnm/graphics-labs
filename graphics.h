@@ -45,11 +45,13 @@ public:
 
 private:
     void prepareForRender();
-    void renderScene(ID3D11RenderTargetView* rtv);
+    void renderScene();
 
     bool createRenderTargetTexture(UINT width, UINT height, ID3D11RenderTargetView*& rtv,
         ID3D11SamplerState*& samplerState, ID3D11ShaderResourceView*& srv);
+
     void setViewport(UINT width, UINT height);
+    void setRenderTarget(ID3D11RenderTargetView* rtv);
 
     bool createCube();
     bool createScreenQuad();
@@ -68,7 +70,7 @@ private:
     IDXGISwapChain* swapChain = nullptr;
     IDXGISwapChain1* swapChain1 = nullptr;
 
-    ID3D11RenderTargetView* renderTargetView = nullptr;
+    ID3D11RenderTargetView* swapChainRTV = nullptr;
     ID3D11RenderTargetView* baseTextureRTV = nullptr;
     ID3D11ShaderResourceView* baseSRV = nullptr;
     ID3D11SamplerState* samplerState = nullptr;

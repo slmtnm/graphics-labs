@@ -173,7 +173,7 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
     if (FAILED(hr))
         return nullptr;
 
-    hr = graphics->device->CreateRenderTargetView(pBackBuffer, nullptr, &graphics->renderTargetView);
+    hr = graphics->device->CreateRenderTargetView(pBackBuffer, nullptr, &graphics->swapChainRTV);
     pBackBuffer->Release();
     if (FAILED(hr))
         return nullptr;
@@ -242,8 +242,6 @@ bool Graphics::createRenderTargetTexture(
     if (FAILED(hr))
         return false;
 
-    rndTargetTexWH->Release();
-
     // Create the sample state
     D3D11_SAMPLER_DESC sampDesc;
     ZeroMemory(&sampDesc, sizeof(sampDesc));
@@ -267,6 +265,8 @@ bool Graphics::createRenderTargetTexture(
 
     // Create the shader resource view.
     hr = inst->device->CreateShaderResourceView(rndTargetTexWH, &srvd, &srv);
+    rndTargetTexWH->Release();
+
     if (FAILED(hr))
         return false;
 
@@ -335,7 +335,7 @@ bool Graphics::createScreenQuad() {
     UINT indices[] =
     {
         0, 1, 2,
-        0, 2, 3
+        2, 3, 0
     };
 
     quad = PrimitiveFactory::create<TextureVertex>(vertices, 4, indices, 6);
@@ -394,11 +394,7 @@ void Graphics::prepareForRender() {
 #endif
 }
 
-void Graphics::renderScene(ID3D11RenderTargetView* rtv) {
-    // Just clear the backbuffer
-    float clearColor[] = { 0.3f, 0.5f, 0.7f, 1.0f };
-    context->ClearRenderTargetView(renderTargetView, clearColor);
-
+void Graphics::renderScene() {
     // Render a cube
 #ifdef _DEBUG
     annotation->BeginEvent(L"DrawCube");
@@ -407,14 +403,13 @@ void Graphics::renderScene(ID3D11RenderTargetView* rtv) {
 #ifdef _DEBUG
     annotation->EndEvent();
 #endif
+}
 
-#ifdef _DEBUG
-    annotation->BeginEvent(L"DrawScreenQuad");
-#endif
-    quad->render(bright, samplerState, baseSRV);
-#ifdef _DEBUG
-    annotation->EndEvent();
-#endif
+void Graphics::setRenderTarget(ID3D11RenderTargetView* rtv)
+{
+    float clearColor[] = { 0.3f, 0.5f, 0.7f, 1.0f };
+    context->ClearRenderTargetView(rtv, clearColor);
+    context->OMSetRenderTargets(1, &rtv, nullptr);
 }
 
 
@@ -422,15 +417,27 @@ void Graphics::render() {
     prepareForRender();
 
     setViewport(width, height);
-    context->OMSetRenderTargets(1, &baseTextureRTV, nullptr);
-    renderScene(baseTextureRTV);
-    context->OMSetRenderTargets(1, &renderTargetView, nullptr);
-    renderScene(renderTargetView);
+    setRenderTarget(baseTextureRTV);
+    renderScene();
+
+    setRenderTarget(swapChainRTV);
+#ifdef _DEBUG
+    annotation->BeginEvent(L"DrawScreenQuad");
+#endif
+    quad->render(bright, samplerState, baseSRV);
+#ifdef _DEBUG
+    annotation->EndEvent();
+#endif
+
     swapChain->Present(0, 0);
+
+    // Unbind shader resource
+    ID3D11ShaderResourceView* views[1] = { nullptr };
+    context->PSSetShaderResources(0, 1, views);
 }
 
 void Graphics::cleanup() {
-    if (renderTargetView) renderTargetView->Release();
+    if (swapChainRTV) swapChainRTV->Release();
     if (baseTextureRTV) baseTextureRTV->Release();
 
     simple.cleanup();
@@ -472,7 +479,7 @@ HRESULT Graphics::resizeBackbuffer(UINT width, UINT height) {
 
     context->OMSetRenderTargets(ARRAYSIZE(nullViews), nullViews, nullptr);
 
-    if (renderTargetView) renderTargetView->Release();
+    if (swapChainRTV) swapChainRTV->Release();
 
     //if (baseTextureRTV) baseTextureRTV->Release();
     context->Flush();
@@ -486,14 +493,13 @@ HRESULT Graphics::resizeBackbuffer(UINT width, UINT height) {
     if (FAILED(hr))
         return hr;
 
-    hr = device->CreateRenderTargetView(backBuffer, nullptr, &renderTargetView);
+    hr = device->CreateRenderTargetView(backBuffer, nullptr, &swapChainRTV);
     if (FAILED(hr))
         return hr;
  
     backBuffer->Release();
 
-    CD3D11_VIEWPORT viewPort(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height));
-    context->RSSetViewports(1, &viewPort);
+    setViewport(width, height);
 
     this->width = width;
     this->height = height;
