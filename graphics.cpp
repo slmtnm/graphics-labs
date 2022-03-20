@@ -334,8 +334,8 @@ bool Graphics::createScreenQuad() {
     // Create index buffer
     UINT indices[] =
     {
-        0, 1, 2,
-        2, 3, 0
+        0, 2, 1,
+        2, 0, 3
     };
 
     quad = PrimitiveFactory::create<TextureVertex>(vertices, 4, indices, 6);
