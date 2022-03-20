@@ -34,7 +34,7 @@ VS_OUTPUT VS(VS_INPUT input)
 float4 PS(VS_OUTPUT input) : SV_TARGET
 {
     float4 color = tex.Sample(samLinear, input.Tex);
-    return color;
-    //float brightness = color[0] * 0.7 + color[1] * 0.2 + color[2] * 0.1;
-    //return float4(brightness, brightness, brightness, 1);
+    //return color;
+    float brightness = color[0] * 0.7 + color[1] * 0.2 + color[2] * 0.1;
+    return float4(brightness, brightness, brightness, 1);
 }

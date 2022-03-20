@@ -47,6 +47,8 @@ private:
     void prepareForRender();
     void renderScene();
 
+    void calcMeanBrightness();
+
     bool createRenderTargetTexture(UINT width, UINT height, ID3D11RenderTargetView*& rtv,
         ID3D11SamplerState*& samplerState, ID3D11ShaderResourceView*& srv);
 

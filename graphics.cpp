@@ -5,6 +5,7 @@
 #include <chrono>
 #include <cmath>
 #include <tuple>
+#include <algorithm>
 
 #include "graphics.h"
 #include "camera.h"
@@ -226,7 +227,6 @@ bool Graphics::createRenderTargetTexture(
     td.CPUAccessFlags = 0;
 
     ID3D11Texture2D* rndTargetTexWH = nullptr;
-
     auto hr = inst->device->CreateTexture2D(&td, NULL, &rndTargetTexWH);
     if (FAILED(hr))
         return false;
@@ -405,6 +405,7 @@ void Graphics::renderScene() {
 #endif
 }
 
+
 void Graphics::setRenderTarget(ID3D11RenderTargetView* rtv)
 {
     float clearColor[] = { 0.3f, 0.5f, 0.7f, 1.0f };
@@ -413,13 +414,49 @@ void Graphics::setRenderTarget(ID3D11RenderTargetView* rtv)
 }
 
 
-void Graphics::render() {
-    prepareForRender();
-
+void Graphics::calcMeanBrightness()
+{
     setViewport(width, height);
     setRenderTarget(baseTextureRTV);
     renderScene();
 
+    auto n = std::max<INT>(std::ceil(std::log2(width)), std::ceil(std::log(height)));
+    auto two_pow_n = 1 << n;
+
+    // 2 ^ n
+    ID3D11ShaderResourceView* curSRV = baseSRV, *prevSRV = nullptr;
+    for (; n >= 0; n--, two_pow_n >>= 1)
+    {
+        ID3D11RenderTargetView* rtv_2n = nullptr;
+        ID3D11ShaderResourceView* srv_2n = nullptr;
+        if (!createRenderTargetTexture(two_pow_n, two_pow_n, rtv_2n, samplerState, srv_2n))
+            printf(":(");
+
+        setViewport(two_pow_n, two_pow_n);
+        setRenderTarget(rtv_2n);
+    #ifdef _DEBUG
+        annotation->BeginEvent((std::wstring(L"DrawScreenQuad2^") + std::to_wstring(n)).c_str());
+    #endif
+        quad->render(bright, samplerState, curSRV);
+    #ifdef _DEBUG
+        annotation->EndEvent();
+    #endif
+        prevSRV = curSRV;
+        curSRV = srv_2n;
+
+        rtv_2n->Release();
+        if (prevSRV && prevSRV != baseSRV)
+            prevSRV->Release();
+    }
+}
+
+
+void Graphics::render() {
+    prepareForRender();
+
+    calcMeanBrightness();
+
+    setViewport(width, height);
     setRenderTarget(swapChainRTV);
 #ifdef _DEBUG
     annotation->BeginEvent(L"DrawScreenQuad");
