@@ -75,6 +75,7 @@ private:
     ID3D11RenderTargetView* swapChainRTV = nullptr;
     ID3D11RenderTargetView* baseTextureRTV = nullptr;
     ID3D11ShaderResourceView* baseSRV = nullptr;
+    ID3D11ShaderResourceView* brightnessPixelSRV = nullptr;
     ID3D11SamplerState* samplerState = nullptr;
 
     //------------//
@@ -102,7 +103,7 @@ private:
 
     Camera camera;
 
-    Shader simple, bright;
+    Shader simple, bright, screenQuad;
     std::unique_ptr<Primitive> cube;
     std::unique_ptr<Primitive> quad;
     XMMATRIX world;

@@ -67,5 +67,14 @@
     <FxCompile Include="brightness_VS.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
+    <FxCompile Include="screenquad.fx">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="screenquad_PS.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="screenquad_VS.hlsl">
+      <Filter>Shader</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

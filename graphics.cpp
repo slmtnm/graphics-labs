@@ -164,6 +164,7 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
     };
 
     graphics->bright.makeShaders(L"brightness.fx", brightLayout, 3);
+    graphics->screenQuad.makeShaders(L"screenquad.fx", brightLayout, 3);
 
     if (!graphics->createRenderTargetTexture(width, height, inst->baseTextureRTV, inst->samplerState, inst->baseSRV))
         return nullptr; 
@@ -448,6 +449,7 @@ void Graphics::calcMeanBrightness()
         if (prevSRV && prevSRV != baseSRV)
             prevSRV->Release();
     }
+    brightnessPixelSRV = curSRV;
 }
 
 
@@ -461,10 +463,12 @@ void Graphics::render() {
 #ifdef _DEBUG
     annotation->BeginEvent(L"DrawScreenQuad");
 #endif
-    quad->render(bright, samplerState, baseSRV);
+    quad->render(screenQuad, samplerState, brightnessPixelSRV); // baseSRV);
 #ifdef _DEBUG
     annotation->EndEvent();
 #endif
+
+    brightnessPixelSRV->Release();
 
     swapChain->Present(0, 0);
 
