@@ -166,7 +166,7 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
     graphics->bright.makeShaders(L"brightness.fx", brightLayout, 3);
     graphics->screenQuad.makeShaders(L"screenquad.fx", brightLayout, 3);
 
-    if (!graphics->createRenderTargetTexture(width, height, inst->baseTextureRTV, inst->samplerState, inst->baseSRV))
+    if (!graphics->createRenderTargetTexture(width, height, inst->baseTextureRTV, inst->baseSRV, inst->samplerState, true))
         return nullptr; 
 
     // Create a render target view
@@ -210,8 +210,8 @@ void Graphics::setViewport(UINT width, UINT height)
 
 bool Graphics::createRenderTargetTexture(
     UINT width, UINT height, ID3D11RenderTargetView*& rtv,
-    ID3D11SamplerState*& samplerState,
-    ID3D11ShaderResourceView*& srv)
+    ID3D11ShaderResourceView*& srv, 
+    ID3D11SamplerState*& samplerState, bool createSamplerState)
 {
     // Setup render target texture
     D3D11_TEXTURE2D_DESC td;
@@ -243,19 +243,22 @@ bool Graphics::createRenderTargetTexture(
     if (FAILED(hr))
         return false;
 
-    // Create the sample state
-    D3D11_SAMPLER_DESC sampDesc;
-    ZeroMemory(&sampDesc, sizeof(sampDesc));
-    sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-    sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-    sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-    sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-    sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-    sampDesc.MinLOD = 0;
-    sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
-    hr = inst->device->CreateSamplerState(&sampDesc, &samplerState);
-    if (FAILED(hr))
-        return false;
+    if (createSamplerState)
+    {
+        // Create the sample state
+        D3D11_SAMPLER_DESC sampDesc;
+        ZeroMemory(&sampDesc, sizeof(sampDesc));
+        sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+        sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+        sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+        sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+        sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+        sampDesc.MinLOD = 0;
+        sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
+        hr = inst->device->CreateSamplerState(&sampDesc, &samplerState);
+        if (FAILED(hr))
+            return false;
+    }
 
     // Setup the description of the shader resource view.
     D3D11_SHADER_RESOURCE_VIEW_DESC srvd;
@@ -415,7 +418,7 @@ void Graphics::setRenderTarget(ID3D11RenderTargetView* rtv)
 }
 
 
-void Graphics::calcMeanBrightness()
+ID3D11ShaderResourceView * Graphics::calcMeanBrightness()
 {
     setViewport(width, height);
     setRenderTarget(baseTextureRTV);
@@ -425,12 +428,12 @@ void Graphics::calcMeanBrightness()
     auto two_pow_n = 1 << n;
 
     // 2 ^ n
-    ID3D11ShaderResourceView* curSRV = baseSRV, *prevSRV = nullptr;
+    ID3D11ShaderResourceView* curSRV = baseSRV, *prevSRV = baseSRV;
     for (; n >= 0; n--, two_pow_n >>= 1)
     {
         ID3D11RenderTargetView* rtv_2n = nullptr;
         ID3D11ShaderResourceView* srv_2n = nullptr;
-        if (!createRenderTargetTexture(two_pow_n, two_pow_n, rtv_2n, samplerState, srv_2n))
+        if (!createRenderTargetTexture(two_pow_n, two_pow_n, rtv_2n, srv_2n, samplerState, false))
             printf(":(");
 
         setViewport(two_pow_n, two_pow_n);
@@ -446,17 +449,17 @@ void Graphics::calcMeanBrightness()
         curSRV = srv_2n;
 
         rtv_2n->Release();
-        if (prevSRV && prevSRV != baseSRV)
+        if (prevSRV != baseSRV)
             prevSRV->Release();
     }
-    brightnessPixelSRV = curSRV;
+    return curSRV;
 }
 
 
 void Graphics::render() {
     prepareForRender();
 
-    calcMeanBrightness();
+    auto brightnessPixelSRV = calcMeanBrightness();
 
     setViewport(width, height);
     setRenderTarget(swapChainRTV);

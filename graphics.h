@@ -47,10 +47,11 @@ private:
     void prepareForRender();
     void renderScene();
 
-    void calcMeanBrightness();
+    ID3D11ShaderResourceView* calcMeanBrightness();
 
-    bool createRenderTargetTexture(UINT width, UINT height, ID3D11RenderTargetView*& rtv,
-        ID3D11SamplerState*& samplerState, ID3D11ShaderResourceView*& srv);
+    bool createRenderTargetTexture(UINT width, UINT height, 
+        ID3D11RenderTargetView*& rtv, ID3D11ShaderResourceView*& srv,
+        ID3D11SamplerState*& samplerState, bool createSamplerState = false);
 
     void setViewport(UINT width, UINT height);
     void setRenderTarget(ID3D11RenderTargetView* rtv);
@@ -75,7 +76,6 @@ private:
     ID3D11RenderTargetView* swapChainRTV = nullptr;
     ID3D11RenderTargetView* baseTextureRTV = nullptr;
     ID3D11ShaderResourceView* baseSRV = nullptr;
-    ID3D11ShaderResourceView* brightnessPixelSRV = nullptr;
     ID3D11SamplerState* samplerState = nullptr;
 
     //------------//
