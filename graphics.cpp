@@ -461,6 +461,13 @@ void Graphics::render() {
 
     auto brightnessPixelSRV = calcMeanBrightness();
 
+    D3D11_MAPPED_SUBRESOURCE subrc;
+    auto hr = context->Map(
+        reinterpret_cast<ID3D11Resource *>(brightnessPixelSRV),
+        0, D3D11_MAP::D3D11_MAP_READ, 0, &subrc);
+    if (FAILED(hr))
+        printf("Failed map resource :(");
+
     setViewport(width, height);
     setRenderTarget(swapChainRTV);
 #ifdef _DEBUG
