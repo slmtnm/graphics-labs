@@ -106,9 +106,9 @@ private:
 
     Camera camera;
 
-    Shader simple, bright, screenQuad;
-    std::unique_ptr<Primitive> cube;
-    std::unique_ptr<Primitive> quad;
+    Shader simpleShader, brightShader, screenQuadShader;
+    std::unique_ptr<Primitive> cubePrim;
+    std::unique_ptr<Primitive> quadPrim;
     XMMATRIX world;
 
     std::chrono::system_clock::time_point start;

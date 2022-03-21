@@ -154,7 +154,7 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
         { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
     };
 
-    graphics->simple.makeShaders(L"simple.fx", simpleLayout, 2);
+    graphics->simpleShader.makeShaders(L"simple.fx", simpleLayout, 2);
 
     D3D11_INPUT_ELEMENT_DESC brightLayout[] =
     {
@@ -163,8 +163,8 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
         { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 28, D3D11_INPUT_PER_VERTEX_DATA, 0 }
     };
 
-    graphics->bright.makeShaders(L"brightness.fx", brightLayout, 3);
-    graphics->screenQuad.makeShaders(L"screenquad.fx", brightLayout, 3);
+    graphics->brightShader.makeShaders(L"brightness.fx", brightLayout, 3);
+    graphics->screenQuadShader.makeShaders(L"screenquad.fx", brightLayout, 3);
 
     if (!graphics->createRenderTargetTexture(width, height, inst->baseTextureRTV, inst->baseSRV, inst->samplerState, true))
         return nullptr; 
@@ -337,11 +337,11 @@ bool Graphics::createCube() {
         7,4,6,
     };
 
-    cube = PrimitiveFactory::create<SimpleVertex>(vertices, 8, indices, 36);
-    if (!cube)
+    cubePrim = PrimitiveFactory::create<SimpleVertex>(vertices, 8, indices, 36);
+    if (!cubePrim)
         return false;
 
-    cube->addConstBuffer(sizeof(ConstantBuffer));
+    cubePrim->addConstBuffer(sizeof(ConstantBuffer));
 
     // Initialize the world matrix
     world = XMMatrixIdentity();
@@ -366,8 +366,8 @@ bool Graphics::createScreenQuad() {
         2, 0, 3
     };
 
-    quad = PrimitiveFactory::create<TextureVertex>(vertices, 4, indices, 6);
-    if (!quad)
+    quadPrim = PrimitiveFactory::create<TextureVertex>(vertices, 4, indices, 6);
+    if (!quadPrim)
         return false;
     return true;
 }
@@ -416,7 +416,7 @@ void Graphics::prepareForRender() {
 #ifdef _DEBUG
     annotation->BeginEvent(L"UpdConstBuffer");
 #endif
-    cube->updateConstBuffer<ConstantBuffer>(0, cb);
+    cubePrim->updateConstBuffer<ConstantBuffer>(0, cb);
 #ifdef _DEBUG
     annotation->EndEvent();
 #endif
@@ -427,7 +427,7 @@ void Graphics::renderScene() {
 #ifdef _DEBUG
     annotation->BeginEvent(L"DrawCube");
 #endif
-    cube->render(simple);
+    cubePrim->render(simpleShader);
 #ifdef _DEBUG
     annotation->EndEvent();
 #endif
@@ -469,7 +469,7 @@ bool Graphics::calcMeanBrightness(ID3D11ShaderResourceView*&srv, ID3D11Texture2D
 
         setViewport(two_pow_n, two_pow_n);
         setRenderTarget(rtv_2n);
-        quad->render(bright, samplerState, curSRV);
+        quadPrim->render(brightShader, samplerState, curSRV);
 #ifdef _DEBUG
         annotation->EndEvent();
 #endif
@@ -517,7 +517,7 @@ void Graphics::render() {
 #ifdef _DEBUG
     annotation->BeginEvent(L"DrawScreenQuad");
 #endif
-    quad->render(screenQuad, samplerState, brightnessPixelSRV); // baseSRV);
+    quadPrim->render(screenQuadShader, samplerState, brightnessPixelSRV); // baseSRV);
 #ifdef _DEBUG
     annotation->EndEvent();
 #endif
@@ -538,11 +538,13 @@ void Graphics::cleanup() {
     if (swapChainRTV) swapChainRTV->Release();
     if (baseTextureRTV) baseTextureRTV->Release();
 
-    simple.cleanup();
-    bright.cleanup();
-    cube->cleanup();
+    simpleShader.cleanup();
+    brightShader.cleanup();
+    screenQuadShader.cleanup();
 
-    quad->cleanup();
+    cubePrim->cleanup();
+
+    quadPrim->cleanup();
     if (swapChain1) swapChain1->Release();
     if (swapChain) swapChain->Release();
     if (annotation) annotation->Release();
