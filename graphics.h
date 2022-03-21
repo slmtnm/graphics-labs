@@ -47,11 +47,14 @@ private:
     void prepareForRender();
     void renderScene();
 
-    ID3D11ShaderResourceView* calcMeanBrightness();
+    bool calcMeanBrightness(ID3D11ShaderResourceView*& srv, ID3D11Texture2D*& tex);
 
     bool createRenderTargetTexture(UINT width, UINT height, 
         ID3D11RenderTargetView*& rtv, ID3D11ShaderResourceView*& srv,
-        ID3D11SamplerState*& samplerState, bool createSamplerState = false);
+        ID3D11SamplerState*& samplerState, bool createSamplerState = false,
+        ID3D11Texture2D **tex = nullptr);
+
+    bool createCPUAccessedTexture(ID3D11Texture2D*& dst, ID3D11Texture2D* src);
 
     void setViewport(UINT width, UINT height);
     void setRenderTarget(ID3D11RenderTargetView* rtv);

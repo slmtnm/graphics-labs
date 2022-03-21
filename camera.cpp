@@ -19,9 +19,9 @@ void Camera::updateDirection() {
     float pitchRad = XMConvertToRadians(pitch);
 
     direction = XMVectorSet(
-        cos(yawRad) * cos(pitchRad),
-        sin(pitchRad),
-        sin(yawRad) * cos(pitchRad),
+        cosf(yawRad) * cosf(pitchRad),
+        sinf(pitchRad),
+        sinf(yawRad) * cosf(pitchRad),
         0
     );
 }

@@ -31,7 +31,9 @@
     <ClCompile Include="Shader.cpp">
       <Filter>Graphics</Filter>
     </ClCompile>
-    <ClCompile Include="primitive.cpp" />
+    <ClCompile Include="primitive.cpp">
+      <Filter>Graphics\Primitive</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="camera.h">
@@ -46,7 +48,9 @@
     <ClInclude Include="Shader.h">
       <Filter>Graphics</Filter>
     </ClInclude>
-    <ClInclude Include="primitive.h" />
+    <ClInclude Include="primitive.h">
+      <Filter>Graphics\Primitive</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="simple_ps.hlsl">

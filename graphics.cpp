@@ -211,7 +211,8 @@ void Graphics::setViewport(UINT width, UINT height)
 bool Graphics::createRenderTargetTexture(
     UINT width, UINT height, ID3D11RenderTargetView*& rtv,
     ID3D11ShaderResourceView*& srv, 
-    ID3D11SamplerState*& samplerState, bool createSamplerState)
+    ID3D11SamplerState*& samplerState, bool createSamplerState,
+    ID3D11Texture2D** tex)
 {
     // Setup render target texture
     D3D11_TEXTURE2D_DESC td;
@@ -231,6 +232,9 @@ bool Graphics::createRenderTargetTexture(
     auto hr = inst->device->CreateTexture2D(&td, NULL, &rndTargetTexWH);
     if (FAILED(hr))
         return false;
+
+    if (tex)
+        *tex = rndTargetTexWH;
 
     // Setup the description of the render target view.
     D3D11_RENDER_TARGET_VIEW_DESC rtvd;
@@ -269,11 +273,31 @@ bool Graphics::createRenderTargetTexture(
 
     // Create the shader resource view.
     hr = inst->device->CreateShaderResourceView(rndTargetTexWH, &srvd, &srv);
-    rndTargetTexWH->Release();
+
+    if (!tex)
+        rndTargetTexWH->Release();
 
     if (FAILED(hr))
         return false;
 
+    return true;
+}
+
+bool Graphics::createCPUAccessedTexture(ID3D11Texture2D*& dst, ID3D11Texture2D* src) {
+    // Setup render target texture
+    D3D11_TEXTURE2D_DESC td;
+
+    src->GetDesc(&td);
+    td.Usage = D3D11_USAGE_STAGING;
+    td.BindFlags = 0;
+    //td.BindFlags = D3D11_BIND_UNORDERED_ACCESS;
+    td.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+
+    auto hr = inst->device->CreateTexture2D(&td, NULL, &dst);
+    if (FAILED(hr))
+        return false;
+
+    context->CopyResource(dst, src);
     return true;
 }
 
@@ -382,7 +406,7 @@ void Graphics::prepareForRender() {
 
     auto time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start).count() / 1000.0f;
 
-    world = XMMatrixTranslation(.0f, 0.9 * sin(time), .0f) * XMMatrixRotationY(time);
+    world = XMMatrixTranslation(.0f, 0.9f * sinf(time), .0f) * XMMatrixRotationY(time);
 
     cb.mWorld = XMMatrixTranspose(world);
     cb.mView = XMMatrixTranspose(camera.view());
@@ -418,23 +442,33 @@ void Graphics::setRenderTarget(ID3D11RenderTargetView* rtv)
 }
 
 
-ID3D11ShaderResourceView * Graphics::calcMeanBrightness()
+bool Graphics::calcMeanBrightness(ID3D11ShaderResourceView*&srv, ID3D11Texture2D*& tex)
 {
     setViewport(width, height);
     setRenderTarget(baseTextureRTV);
     renderScene();
 
-    auto n = std::max<INT>(std::ceil(std::log2(width)), std::ceil(std::log(height)));
+    auto n = static_cast<int>(std::max<double>(std::ceil(std::log2(width)), std::ceil(std::log(height))));
     auto two_pow_n = 1 << n;
 
     // 2 ^ n
     ID3D11ShaderResourceView* curSRV = baseSRV, *prevSRV = baseSRV;
+    ID3D11Texture2D* resTex2D = nullptr;
     for (; n >= 0; n--, two_pow_n >>= 1)
     {
         ID3D11RenderTargetView* rtv_2n = nullptr;
         ID3D11ShaderResourceView* srv_2n = nullptr;
-        if (!createRenderTargetTexture(two_pow_n, two_pow_n, rtv_2n, srv_2n, samplerState, false))
-            printf(":(");
+        bool cpuAccessFlag = n == 0;
+        ID3D11Texture2D* tex_2n = nullptr;
+        if (!createRenderTargetTexture(two_pow_n, two_pow_n, rtv_2n, srv_2n, samplerState, false, cpuAccessFlag ? &tex_2n : nullptr))
+            return false;
+
+        if (cpuAccessFlag)
+        {
+            if (!createCPUAccessedTexture(resTex2D, tex_2n))
+                return false;
+            tex_2n->Release();
+        }
 
         setViewport(two_pow_n, two_pow_n);
         setRenderTarget(rtv_2n);
@@ -452,19 +486,21 @@ ID3D11ShaderResourceView * Graphics::calcMeanBrightness()
         if (prevSRV != baseSRV)
             prevSRV->Release();
     }
-    return curSRV;
+    srv = curSRV;
+    tex = resTex2D;
+    return true;
 }
 
 
 void Graphics::render() {
     prepareForRender();
 
-    auto brightnessPixelSRV = calcMeanBrightness();
-
+    ID3D11ShaderResourceView* brightnessPixelSRV = nullptr;
+    ID3D11Texture2D* brightnessPixelTex2D = nullptr;
     D3D11_MAPPED_SUBRESOURCE subrc;
-    auto hr = context->Map(
-        reinterpret_cast<ID3D11Resource *>(brightnessPixelSRV),
-        0, D3D11_MAP::D3D11_MAP_READ, 0, &subrc);
+
+    bool brightness_ok = calcMeanBrightness(brightnessPixelSRV, brightnessPixelTex2D);
+    auto hr = context->Map(brightnessPixelTex2D, 0, D3D11_MAP_READ, 0, &subrc);
     if (FAILED(hr))
         printf("Failed map resource :(");
 
@@ -478,7 +514,10 @@ void Graphics::render() {
     annotation->EndEvent();
 #endif
 
-    brightnessPixelSRV->Release();
+    if (brightnessPixelSRV)
+        brightnessPixelSRV->Release();
+    if (brightnessPixelTex2D)
+        brightnessPixelTex2D->Release();
 
     swapChain->Present(0, 0);
 
