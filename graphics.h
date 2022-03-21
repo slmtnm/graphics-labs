@@ -60,7 +60,7 @@ private:
     void setRenderTarget(ID3D11RenderTargetView* rtv);
 
     bool createCube();
-    bool createScreenQuad();
+    bool createScreenQuad(std::shared_ptr<Primitive> &prim, bool full, float val = 0.0f);
 
     static std::shared_ptr<Graphics> inst;
 
@@ -108,7 +108,7 @@ private:
 
     Shader simpleShader, brightShader, screenQuadShader;
     std::unique_ptr<Primitive> cubePrim;
-    std::unique_ptr<Primitive> quadPrim;
+    std::shared_ptr<Primitive> screenQuadPrim, brightQuadPrim;
     XMMATRIX world;
 
     std::chrono::system_clock::time_point start;

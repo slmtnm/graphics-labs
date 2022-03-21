@@ -349,13 +349,13 @@ bool Graphics::createCube() {
 }
 
 
-bool Graphics::createScreenQuad() {
+bool Graphics::createScreenQuad(std::shared_ptr<Primitive> &prim, bool full, float val) {
     // Create vertex buffer
     TextureVertex vertices[] =
     {
-        { XMFLOAT3(-1.0f, -1.0f, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f), XMFLOAT2(0.0f, 0.0f)},
-        { XMFLOAT3(1.0f, -1.0f, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f), XMFLOAT2(1.0f, 0.0f)},
-        { XMFLOAT3(1.0f, 1.0f, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f), XMFLOAT2(1.0f, 1.0f)},
+        { XMFLOAT3(-1.0f, full ? -1.0f : val, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f), XMFLOAT2(0.0f, 0.0f)},
+        { XMFLOAT3(full ? 1.0f : -val, full ? -1.0f : val, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f), XMFLOAT2(1.0f, 0.0f)},
+        { XMFLOAT3(full ? 1.0f : -val, 1.0f, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f), XMFLOAT2(1.0f, 1.0f)},
         { XMFLOAT3(-1.0f, 1.0f, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f), XMFLOAT2(0.0f, 1.0f)},
     };
 
@@ -366,8 +366,8 @@ bool Graphics::createScreenQuad() {
         2, 0, 3
     };
 
-    quadPrim = PrimitiveFactory::create<TextureVertex>(vertices, 4, indices, 6);
-    if (!quadPrim)
+    prim = PrimitiveFactory::create<TextureVertex>(vertices, 4, indices, 6);
+    if (!prim)
         return false;
     return true;
 }
@@ -376,7 +376,8 @@ bool Graphics::createScreenQuad() {
 bool Graphics::initGeometry() {
     bool success = true;
     success &= createCube();
-    success &= createScreenQuad();
+    success &= createScreenQuad(screenQuadPrim, true);
+    success &= createScreenQuad(brightQuadPrim, false, 0.8f);
     return success;
 }
 
@@ -469,7 +470,7 @@ bool Graphics::calcMeanBrightness(ID3D11ShaderResourceView*&srv, ID3D11Texture2D
 
         setViewport(two_pow_n, two_pow_n);
         setRenderTarget(rtv_2n);
-        quadPrim->render(brightShader, samplerState, curSRV);
+        screenQuadPrim->render(brightShader, samplerState, curSRV);
 #ifdef _DEBUG
         annotation->EndEvent();
 #endif
@@ -517,7 +518,8 @@ void Graphics::render() {
 #ifdef _DEBUG
     annotation->BeginEvent(L"DrawScreenQuad");
 #endif
-    quadPrim->render(screenQuadShader, samplerState, brightnessPixelSRV); // baseSRV);
+    screenQuadPrim->render(screenQuadShader, samplerState, baseSRV);
+    brightQuadPrim->render(screenQuadShader, samplerState, brightnessPixelSRV);
 #ifdef _DEBUG
     annotation->EndEvent();
 #endif
@@ -543,8 +545,9 @@ void Graphics::cleanup() {
     screenQuadShader.cleanup();
 
     cubePrim->cleanup();
+    screenQuadPrim->cleanup();
+    brightQuadPrim->cleanup();
 
-    quadPrim->cleanup();
     if (swapChain1) swapChain1->Release();
     if (swapChain) swapChain->Release();
     if (annotation) annotation->Release();
