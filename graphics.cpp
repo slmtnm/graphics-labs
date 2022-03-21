@@ -460,25 +460,29 @@ bool Graphics::calcMeanBrightness(ID3D11ShaderResourceView*&srv, ID3D11Texture2D
         ID3D11ShaderResourceView* srv_2n = nullptr;
         bool cpuAccessFlag = n == 0;
         ID3D11Texture2D* tex_2n = nullptr;
+
+#ifdef _DEBUG
+        annotation->BeginEvent((std::wstring(L"DrawScreenQuad2^") + std::to_wstring(n)).c_str());
+#endif
         if (!createRenderTargetTexture(two_pow_n, two_pow_n, rtv_2n, srv_2n, samplerState, false, cpuAccessFlag ? &tex_2n : nullptr))
             return false;
 
-        if (cpuAccessFlag)
-        {
-            if (!createCPUAccessedTexture(resTex2D, tex_2n))
-                return false;
-            tex_2n->Release();
-        }
-
         setViewport(two_pow_n, two_pow_n);
         setRenderTarget(rtv_2n);
-    #ifdef _DEBUG
-        annotation->BeginEvent((std::wstring(L"DrawScreenQuad2^") + std::to_wstring(n)).c_str());
-    #endif
         quad->render(bright, samplerState, curSRV);
-    #ifdef _DEBUG
+#ifdef _DEBUG
         annotation->EndEvent();
-    #endif
+#endif
+
+        {
+            if (cpuAccessFlag)
+            {
+                if (!createCPUAccessedTexture(resTex2D, tex_2n))
+                    return false;
+                tex_2n->Release();
+            }
+        }
+
         prevSRV = curSRV;
         curSRV = srv_2n;
 
@@ -503,6 +507,10 @@ void Graphics::render() {
     auto hr = context->Map(brightnessPixelTex2D, 0, D3D11_MAP_READ, 0, &subrc);
     if (FAILED(hr))
         printf("Failed map resource :(");
+
+    float* arr = (float*)subrc.pData;
+
+    context->Unmap(brightnessPixelTex2D, 0);
 
     setViewport(width, height);
     setRenderTarget(swapChainRTV);

@@ -130,7 +130,7 @@
       </ShaderType>
     </FxCompile>
     <PostBuildEvent>
-      <Command>xcopy /y "$(ProjectDir)simple.fx" "$(OutDir)"</Command>
+      <Command>xcopy /y "$(ProjectDir)*.fx" "$(OutDir)"</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
