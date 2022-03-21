@@ -47,7 +47,8 @@ private:
     void prepareForRender();
     void renderScene();
 
-    bool calcMeanBrightness(ID3D11ShaderResourceView*& srv, ID3D11Texture2D*& tex);
+    bool evalMeanBrightnessTex(ID3D11ShaderResourceView*& srv, ID3D11Texture2D*& tex);
+    float calcMeanBrightness(ID3D11Texture2D* brightnessPixelTex2D);
 
     bool createRenderTargetTexture(UINT width, UINT height, 
         ID3D11RenderTargetView*& rtv, ID3D11ShaderResourceView*& srv,

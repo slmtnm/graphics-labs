@@ -443,7 +443,7 @@ void Graphics::setRenderTarget(ID3D11RenderTargetView* rtv)
 }
 
 
-bool Graphics::calcMeanBrightness(ID3D11ShaderResourceView*&srv, ID3D11Texture2D*& tex)
+bool Graphics::evalMeanBrightnessTex(ID3D11ShaderResourceView*&srv, ID3D11Texture2D*& tex)
 {
     setViewport(width, height);
     setRenderTarget(baseTextureRTV);
@@ -496,22 +496,36 @@ bool Graphics::calcMeanBrightness(ID3D11ShaderResourceView*&srv, ID3D11Texture2D
     return true;
 }
 
-
-void Graphics::render() {
-    prepareForRender();
-
-    ID3D11ShaderResourceView* brightnessPixelSRV = nullptr;
-    ID3D11Texture2D* brightnessPixelTex2D = nullptr;
+float Graphics::calcMeanBrightness(ID3D11Texture2D* brightnessPixelTex2D) {
     D3D11_MAPPED_SUBRESOURCE subrc;
-
-    bool brightness_ok = calcMeanBrightness(brightnessPixelSRV, brightnessPixelTex2D);
     auto hr = context->Map(brightnessPixelTex2D, 0, D3D11_MAP_READ, 0, &subrc);
     if (FAILED(hr))
         printf("Failed map resource :(");
 
     float* arr = (float*)subrc.pData;
 
+    // Check it is really tex 1x1 pixel
+    assert(subrc.DepthPitch >= 1);
+    assert(subrc.RowPitch >= 1);
+    assert(fabs(arr[0] - arr[1]) < 1e-6);
+    assert(fabs(arr[1] - arr[2]) < 1e-6);
+    assert(fabs(arr[3] - 1) < 1e-6);
     context->Unmap(brightnessPixelTex2D, 0);
+
+    return arr[0];
+}
+
+
+void Graphics::render() {
+    prepareForRender();
+
+    ID3D11ShaderResourceView* brightnessPixelSRV = nullptr;
+    ID3D11Texture2D* brightnessPixelTex2D = nullptr;
+
+    bool brightness_ok = evalMeanBrightnessTex(brightnessPixelSRV, brightnessPixelTex2D);
+    if (!brightness_ok)
+        printf("Failed eval mean brightness :(");
+    auto brightness = calcMeanBrightness(brightnessPixelTex2D);
 
     setViewport(width, height);
     setRenderTarget(swapChainRTV);
