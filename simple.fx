@@ -6,6 +6,8 @@ cbuffer ConstantBuffer : register( b0 )
     matrix World;
     matrix View;
     matrix Projection;
+    float brightness;
+    float _dummy[15];
 }
 
 struct VS_INPUT
@@ -30,7 +32,7 @@ VS_OUTPUT VS( VS_INPUT input )
     output.Pos = mul( input.Pos, World );
     output.Pos = mul( output.Pos, View );
     output.Pos = mul( output.Pos, Projection );
-    output.Color = input.Color;
+    output.Color = float4(float3(input.Color[0], input.Color[1], input.Color[2]) * brightness, input.Color[3]);
     return output;
 }
 
@@ -38,7 +40,7 @@ VS_OUTPUT VS( VS_INPUT input )
 //--------------------------------------------------------------------------------------
 // Pixel Shader
 //--------------------------------------------------------------------------------------
-float4 PS( VS_OUTPUT input ) : SV_Target
+float4 PS(VS_OUTPUT input) : SV_Target
 {
     return input.Color;
 }

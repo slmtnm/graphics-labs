@@ -342,9 +342,32 @@ bool Graphics::createCube() {
         return false;
 
     cubePrim->addConstBuffer(sizeof(ConstantBuffer));
+    return true;
+}
 
-    // Initialize the world matrix
-    world = XMMatrixIdentity();
+bool Graphics::createQuad()
+{
+    // Create vertex buffer
+    auto color = XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f);
+    SimpleVertex vertices[] =
+    {
+        { XMFLOAT3(-1.0f, -1.0f, 0.0f), color },
+        { XMFLOAT3(1.0f, -1.0f, 0.0f), color },
+        { XMFLOAT3(1.0f, 1.0f, 0.0f), color },
+        { XMFLOAT3(-1.0f, 1.0f, 0.0f), color },
+    };
+
+    // Create index buffer
+    UINT indices[] =
+    {
+        0, 2, 1,
+        2, 0, 3
+    };
+
+    quadPrim = PrimitiveFactory::create<SimpleVertex>(vertices, 4, indices, 6);
+    if (!quadPrim)
+        return false;
+    quadPrim->addConstBuffer(sizeof(ConstantBuffer));
     return true;
 }
 
@@ -369,20 +392,23 @@ bool Graphics::createScreenQuad(std::shared_ptr<Primitive> &prim, bool full, flo
     prim = PrimitiveFactory::create<TextureVertex>(vertices, 4, indices, 6);
     if (!prim)
         return false;
+
+    prim->addConstBuffer(sizeof(BrightConstantBuffer));
     return true;
 }
 
 
 bool Graphics::initGeometry() {
     bool success = true;
-    success &= createCube();
+    success &= createQuad();
     success &= createScreenQuad(screenQuadPrim, true);
     success &= createScreenQuad(brightQuadPrim, false, 0.8f);
+
     return success;
 }
 
 
-void Graphics::prepareForRender() {
+void Graphics::moveCamera() {
     // Camera movement
     XMVECTOR moveDirection = { 0.0f, 0.0f, 0.0f, 0.0f };
     if (moveRight) moveDirection += camera.getRight();
@@ -400,40 +426,58 @@ void Graphics::prepareForRender() {
     }
 
     lastFrame = timeGetTime();
+}
 
+void Graphics::renderScene() {
     // Update variables
     ConstantBuffer cb;
     ZeroMemory(&cb, sizeof(ConstantBuffer));
-
-    auto time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start).count() / 1000.0f;
-
-    world = XMMatrixTranslation(.0f, 0.9f * sinf(time), .0f) * XMMatrixRotationY(time);
-
-    cb.mWorld = XMMatrixTranspose(world);
     cb.mView = XMMatrixTranspose(camera.view());
     cb.mProjection = XMMatrixTranspose(camera.projection());
 
 
+    auto updCBuf = [&](LPCWSTR eventName)
+    {
 #ifdef _DEBUG
-    annotation->BeginEvent(L"UpdConstBuffer");
+        annotation->BeginEvent(eventName);
 #endif
-    cubePrim->updateConstBuffer<ConstantBuffer>(0, cb);
+        quadPrim->updateConstBuffer<ConstantBuffer>(0, cb);
 #ifdef _DEBUG
-    annotation->EndEvent();
+        annotation->EndEvent();
 #endif
-}
+    };
 
-void Graphics::renderScene() {
-    // Render a cube
+    auto drawQuad = [&](LPCWSTR eventName)
+    {
 #ifdef _DEBUG
-    annotation->BeginEvent(L"DrawCube");
+        annotation->BeginEvent(eventName);
 #endif
-    cubePrim->render(simpleShader);
+        quadPrim->render(simpleShader);
 #ifdef _DEBUG
-    annotation->EndEvent();
+        annotation->EndEvent();
 #endif
-}
 
+    };
+
+    // Render quads
+    auto world = XMMatrixTranslation(0.0f, 0.0f, 0.0f);
+    cb.mWorld = XMMatrixTranspose(world);
+    cb.brightness = 1.0f;
+    updCBuf(L"UpdConstBuffer1");
+    drawQuad(L"DrawQuad1");
+
+    world = XMMatrixTranslation(0.5f, 0.5f, 0.0f);
+    cb.mWorld = XMMatrixTranspose(world);
+    cb.brightness = 5.0f;
+    updCBuf(L"UpdConstBuffer2");
+    drawQuad(L"DrawQuad2");
+
+    world = XMMatrixTranslation(-0.5f, 0.75f, 0.0f);
+    cb.mWorld = XMMatrixTranspose(world);
+    cb.brightness = 15.0f;
+    updCBuf(L"UpdConstBuffer3");
+    drawQuad(L"DrawQuad3");
+}
 
 void Graphics::setRenderTarget(ID3D11RenderTargetView* rtv)
 {
@@ -441,7 +485,6 @@ void Graphics::setRenderTarget(ID3D11RenderTargetView* rtv)
     context->ClearRenderTargetView(rtv, clearColor);
     context->OMSetRenderTargets(1, &rtv, nullptr);
 }
-
 
 bool Graphics::evalMeanBrightnessTex(ID3D11ShaderResourceView*&srv, ID3D11Texture2D*& tex)
 {
@@ -475,13 +518,11 @@ bool Graphics::evalMeanBrightnessTex(ID3D11ShaderResourceView*&srv, ID3D11Textur
         annotation->EndEvent();
 #endif
 
+        if (cpuAccessFlag)
         {
-            if (cpuAccessFlag)
-            {
-                if (!createCPUAccessedTexture(resTex2D, tex_2n))
-                    return false;
-                tex_2n->Release();
-            }
+            if (!createCPUAccessedTexture(resTex2D, tex_2n))
+                return false;
+            tex_2n->Release();
         }
 
         prevSRV = curSRV;
@@ -512,12 +553,12 @@ float Graphics::calcMeanBrightness(ID3D11Texture2D* brightnessPixelTex2D) {
     assert(fabs(arr[3] - 1) < 1e-6);
     context->Unmap(brightnessPixelTex2D, 0);
 
-    return arr[0];
+    return std::exp(arr[0]) - 1.0f;
 }
 
 
 void Graphics::render() {
-    prepareForRender();
+    moveCamera();
 
     ID3D11ShaderResourceView* brightnessPixelSRV = nullptr;
     ID3D11Texture2D* brightnessPixelTex2D = nullptr;
@@ -529,10 +570,25 @@ void Graphics::render() {
 
     setViewport(width, height);
     setRenderTarget(swapChainRTV);
+
+    BrightConstantBuffer b;
+    ZeroMemory(&b, sizeof(BrightConstantBuffer));
+
 #ifdef _DEBUG
     annotation->BeginEvent(L"DrawScreenQuad");
 #endif
+    b.needExp = 0;
+    brightQuadPrim->updateConstBuffer<BrightConstantBuffer>(0, b);
     screenQuadPrim->render(screenQuadShader, samplerState, baseSRV);
+#ifdef _DEBUG
+    annotation->EndEvent();
+#endif
+
+#ifdef _DEBUG
+    annotation->BeginEvent(L"DrawBrightQuad");
+#endif
+    b.needExp = 1;
+    screenQuadPrim->updateConstBuffer<BrightConstantBuffer>(0, b);
     brightQuadPrim->render(screenQuadShader, samplerState, brightnessPixelSRV);
 #ifdef _DEBUG
     annotation->EndEvent();
@@ -558,7 +614,7 @@ void Graphics::cleanup() {
     brightShader.cleanup();
     screenQuadShader.cleanup();
 
-    cubePrim->cleanup();
+    quadPrim->cleanup();
     screenQuadPrim->cleanup();
     brightQuadPrim->cleanup();
 
