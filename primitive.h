@@ -9,7 +9,7 @@
 class Primitive
 {
 public:
-    UINT addConstBuffer(UINT cBufSize);
+    UINT addConstBuffer(UINT cBufSize, bool boundVS, bool boundPS);
 
     void cleanup();
 
@@ -75,6 +75,9 @@ private:
     std::shared_ptr<Graphics> graphics;
     UINT stride;
     UINT offset;
+
+    bool boundVS;
+    bool boundPS;
 
     friend class PrimitiveFactory;
 };

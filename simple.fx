@@ -1,7 +1,7 @@
 //--------------------------------------------------------------------------------------
 // Constant Buffer Variables
 //--------------------------------------------------------------------------------------
-cbuffer ConstantBuffer : register( b0 )
+cbuffer SimpleConstantBuffer : register( b0 )
 {
     matrix World;
     matrix View;

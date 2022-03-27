@@ -1,7 +1,10 @@
 #include "primitive.h"
 
-UINT Primitive::addConstBuffer(UINT cBufSize)
+UINT Primitive::addConstBuffer(UINT cBufSize, bool boundVS, bool boundPS)
 {
+    this->boundVS = boundVS;
+    this->boundPS = boundPS;
+
     D3D11_BUFFER_DESC bd;
     ZeroMemory(&bd, sizeof(bd));
 
@@ -37,6 +40,7 @@ void Primitive::render(Shader const& shader, ID3D11SamplerState* samplerState, I
     // Set primitive topology
     ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
     ctx->VSSetConstantBuffers(0, static_cast<UINT>(constBuffers.size()), constBuffers.data());
+    ctx->PSSetConstantBuffers(0, static_cast<UINT>(constBuffers.size()), constBuffers.data());
     if (tex && samplerState)
     {
         // Set the sampler state in the pixel shader.

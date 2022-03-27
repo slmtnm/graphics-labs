@@ -164,7 +164,7 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
     };
 
     graphics->brightShader.makeShaders(L"brightness.fx", brightLayout, 3);
-    graphics->screenQuadShader.makeShaders(L"screenquad.fx", brightLayout, 3);
+    graphics->tonemapShader.makeShaders(L"tonemap.fx", brightLayout, 3);
 
     if (!graphics->createRenderTargetTexture(width, height, inst->baseTextureRTV, inst->baseSRV, inst->samplerState, true))
         return nullptr; 
@@ -341,7 +341,7 @@ bool Graphics::createCube() {
     if (!cubePrim)
         return false;
 
-    cubePrim->addConstBuffer(sizeof(ConstantBuffer));
+    cubePrim->addConstBuffer(sizeof(SimpleConstantBuffer), true, false);
     return true;
 }
 
@@ -367,7 +367,7 @@ bool Graphics::createQuad()
     quadPrim = PrimitiveFactory::create<SimpleVertex>(vertices, 4, indices, 6);
     if (!quadPrim)
         return false;
-    quadPrim->addConstBuffer(sizeof(ConstantBuffer));
+    quadPrim->addConstBuffer(sizeof(SimpleConstantBuffer), true, false);
     return true;
 }
 
@@ -393,7 +393,7 @@ bool Graphics::createScreenQuad(std::shared_ptr<Primitive> &prim, bool full, flo
     if (!prim)
         return false;
 
-    prim->addConstBuffer(sizeof(BrightConstantBuffer));
+    prim->addConstBuffer(sizeof(BrightConstantBuffer), true, true);
     return true;
 }
 
@@ -428,35 +428,42 @@ void Graphics::moveCamera() {
     lastFrame = timeGetTime();
 }
 
+
+void Graphics::startEvent(LPCWSTR eventName)
+{
+#ifdef _DEBUG
+    annotation->BeginEvent(eventName);
+#endif
+}
+
+
+void Graphics::endEvent()
+{
+#ifdef _DEBUG
+    annotation->EndEvent();
+#endif
+}
+
 void Graphics::renderScene() {
     // Update variables
-    ConstantBuffer cb;
-    ZeroMemory(&cb, sizeof(ConstantBuffer));
+    SimpleConstantBuffer cb;
+    ZeroMemory(&cb, sizeof(SimpleConstantBuffer));
     cb.mView = XMMatrixTranspose(camera.view());
     cb.mProjection = XMMatrixTranspose(camera.projection());
 
 
     auto updCBuf = [&](LPCWSTR eventName)
     {
-#ifdef _DEBUG
-        annotation->BeginEvent(eventName);
-#endif
-        quadPrim->updateConstBuffer<ConstantBuffer>(0, cb);
-#ifdef _DEBUG
-        annotation->EndEvent();
-#endif
+        startEvent(eventName);
+        quadPrim->updateConstBuffer<SimpleConstantBuffer>(0, cb);
+        endEvent();
     };
 
     auto drawQuad = [&](LPCWSTR eventName)
     {
-#ifdef _DEBUG
-        annotation->BeginEvent(eventName);
-#endif
+        startEvent(eventName);
         quadPrim->render(simpleShader);
-#ifdef _DEBUG
-        annotation->EndEvent();
-#endif
-
+        endEvent();
     };
 
     // Render quads
@@ -474,7 +481,7 @@ void Graphics::renderScene() {
 
     world = XMMatrixTranslation(-0.5f, 0.75f, 0.0f);
     cb.mWorld = XMMatrixTranspose(world);
-    cb.brightness = 15.0f;
+    cb.brightness = 1500.0f;
     updCBuf(L"UpdConstBuffer3");
     drawQuad(L"DrawQuad3");
 }
@@ -505,18 +512,14 @@ bool Graphics::evalMeanBrightnessTex(ID3D11ShaderResourceView*&srv, ID3D11Textur
         bool cpuAccessFlag = n == 0;
         ID3D11Texture2D* tex_2n = nullptr;
 
-#ifdef _DEBUG
-        annotation->BeginEvent((std::wstring(L"DrawScreenQuad2^") + std::to_wstring(n)).c_str());
-#endif
+        startEvent((std::wstring(L"DrawScreenQuad2^") + std::to_wstring(n)).c_str());
         if (!createRenderTargetTexture(two_pow_n, two_pow_n, rtv_2n, srv_2n, samplerState, false, cpuAccessFlag ? &tex_2n : nullptr))
             return false;
 
         setViewport(two_pow_n, two_pow_n);
         setRenderTarget(rtv_2n);
         screenQuadPrim->render(brightShader, samplerState, curSRV);
-#ifdef _DEBUG
-        annotation->EndEvent();
-#endif
+        endEvent();
 
         if (cpuAccessFlag)
         {
@@ -573,26 +576,25 @@ void Graphics::render() {
 
     BrightConstantBuffer b;
     ZeroMemory(&b, sizeof(BrightConstantBuffer));
+    b.meanBrightness = brightness;
 
-#ifdef _DEBUG
-    annotation->BeginEvent(L"DrawScreenQuad");
-#endif
-    b.needExp = 0;
-    brightQuadPrim->updateConstBuffer<BrightConstantBuffer>(0, b);
-    screenQuadPrim->render(screenQuadShader, samplerState, baseSRV);
-#ifdef _DEBUG
-    annotation->EndEvent();
-#endif
-
-#ifdef _DEBUG
-    annotation->BeginEvent(L"DrawBrightQuad");
-#endif
-    b.needExp = 1;
+    startEvent(L"UpdScreenQuadConstBuf");
+    b.isBrightnessWindow = 0;
     screenQuadPrim->updateConstBuffer<BrightConstantBuffer>(0, b);
-    brightQuadPrim->render(screenQuadShader, samplerState, brightnessPixelSRV);
-#ifdef _DEBUG
-    annotation->EndEvent();
-#endif
+    endEvent();
+
+    startEvent(L"DrawScreenQuad");
+    screenQuadPrim->render(tonemapShader, samplerState, baseSRV);
+    endEvent();
+
+    startEvent(L"UpdBrightQuadConstBuf");
+    b.isBrightnessWindow = 1;
+    screenQuadPrim->updateConstBuffer<BrightConstantBuffer>(0, b);
+    endEvent();
+
+    startEvent(L"DrawBrightQuad");
+    brightQuadPrim->render(tonemapShader, samplerState, brightnessPixelSRV);
+    endEvent();
 
     if (brightnessPixelSRV)
         brightnessPixelSRV->Release();
@@ -612,7 +614,7 @@ void Graphics::cleanup() {
 
     simpleShader.cleanup();
     brightShader.cleanup();
-    screenQuadShader.cleanup();
+    tonemapShader.cleanup();
 
     quadPrim->cleanup();
     screenQuadPrim->cleanup();

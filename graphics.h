@@ -44,6 +44,9 @@ public:
     void rotate(int mouseDeltaX, int mouseDeltaY);
 
 private:
+    void startEvent(LPCWSTR eventName);
+    void endEvent();
+
     void moveCamera();
     void renderScene();
 
@@ -99,7 +102,7 @@ private:
         XMFLOAT2 Tex;
     };
 
-    struct ConstantBuffer
+    struct SimpleConstantBuffer
     {
         XMMATRIX mWorld;
         XMMATRIX mView;
@@ -110,20 +113,17 @@ private:
 
     struct BrightConstantBuffer
     {
-        int needExp;
-        int _dummy[15];
+        int isBrightnessWindow;
+        float meanBrightness;
+        int _dummy[14];
     };
 
-    struct ExposureConstantBuffer
-    {
-        float meanBrightness;
-        float _dummy[15];
-    };
 
     Camera camera;
 
-    Shader simpleShader, brightShader, screenQuadShader;
-    std::unique_ptr<Primitive> cubePrim, quadPrim;
+    Shader 
+        simpleShader, brightShader, tonemapShader;
+    std::unique_ptr<Primitive> cubePrim, quadPrim; // cubePrim unused because scene has changed
     std::shared_ptr<Primitive> screenQuadPrim, brightQuadPrim;
 
     std::chrono::system_clock::time_point start;
