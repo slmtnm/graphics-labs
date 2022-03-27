@@ -44,7 +44,7 @@ public:
     void rotate(int mouseDeltaX, int mouseDeltaY);
 
 private:
-    void prepareForRender();
+    void moveCamera();
     void renderScene();
 
     bool evalMeanBrightnessTex(ID3D11ShaderResourceView*& srv, ID3D11Texture2D*& tex);
@@ -61,6 +61,7 @@ private:
     void setRenderTarget(ID3D11RenderTargetView* rtv);
 
     bool createCube();
+    bool createQuad();
     bool createScreenQuad(std::shared_ptr<Primitive> &prim, bool full, float val = 0.0f);
 
     static std::shared_ptr<Graphics> inst;
@@ -103,14 +104,27 @@ private:
         XMMATRIX mWorld;
         XMMATRIX mView;
         XMMATRIX mProjection;
+        float brightness;
+        float _dummy[15];
+    };
+
+    struct BrightConstantBuffer
+    {
+        int needExp;
+        int _dummy[15];
+    };
+
+    struct ExposureConstantBuffer
+    {
+        float meanBrightness;
+        float _dummy[15];
     };
 
     Camera camera;
 
     Shader simpleShader, brightShader, screenQuadShader;
-    std::unique_ptr<Primitive> cubePrim;
+    std::unique_ptr<Primitive> cubePrim, quadPrim;
     std::shared_ptr<Primitive> screenQuadPrim, brightQuadPrim;
-    XMMATRIX world;
 
     std::chrono::system_clock::time_point start;
 

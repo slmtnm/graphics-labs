@@ -1,6 +1,12 @@
 Texture2D tex : register(t0);
 SamplerState samLinear : register(s0);
 
+cbuffer BrightConstantBuffer : register(b0)
+{
+    int needExp;
+    int _dummy[3];
+}
+
 //--------------------------------------------------------------------------------------
 
 struct VS_INPUT
@@ -34,5 +40,5 @@ VS_OUTPUT VS(VS_INPUT input)
 float4 PS(VS_OUTPUT input) : SV_TARGET
 {
     float4 color = tex.Sample(samLinear, input.Tex);
-    return color;
+    return needExp ? float4(exp(color[0]) - 1, exp(color[1]) - 1, exp(color[2]) - 1, 1) : color;
 }
