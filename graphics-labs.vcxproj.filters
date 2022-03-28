@@ -53,31 +53,13 @@
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
-    <FxCompile Include="simple_ps.hlsl">
-      <Filter>Shader</Filter>
-    </FxCompile>
-    <FxCompile Include="simple_vs.hlsl">
-      <Filter>Shader</Filter>
-    </FxCompile>
     <FxCompile Include="simple.fx">
       <Filter>Shader</Filter>
     </FxCompile>
     <FxCompile Include="brightness.fx">
       <Filter>Shader</Filter>
     </FxCompile>
-    <FxCompile Include="brightness_PS.hlsl">
-      <Filter>Shader</Filter>
-    </FxCompile>
-    <FxCompile Include="brightness_VS.hlsl">
-      <Filter>Shader</Filter>
-    </FxCompile>
     <FxCompile Include="tonemap.fx">
-      <Filter>Shader</Filter>
-    </FxCompile>
-    <FxCompile Include="screenquad_PS.hlsl">
-      <Filter>Shader</Filter>
-    </FxCompile>
-    <FxCompile Include="screenquad_VS.hlsl">
       <Filter>Shader</Filter>
     </FxCompile>
   </ItemGroup>
