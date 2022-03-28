@@ -30,7 +30,7 @@ void Primitive::cleanup()
         if (buf) buf->Release();
 }
 
-void Primitive::render(Shader const& shader, ID3D11SamplerState* samplerState, ID3D11ShaderResourceView* tex)
+void Primitive::render(Shader const& shader, size_t cbufIdx, ID3D11SamplerState* samplerState, ID3D11ShaderResourceView* tex)
 {
     shader.apply();
     auto ctx = graphics->getContext();
@@ -39,8 +39,10 @@ void Primitive::render(Shader const& shader, ID3D11SamplerState* samplerState, I
 
     // Set primitive topology
     ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
-    ctx->VSSetConstantBuffers(0, static_cast<UINT>(constBuffers.size()), constBuffers.data());
-    ctx->PSSetConstantBuffers(0, static_cast<UINT>(constBuffers.size()), constBuffers.data());
+    if (boundVS)
+        ctx->VSSetConstantBuffers(0, 1, &constBuffers[cbufIdx]);
+    if (boundPS)
+        ctx->PSSetConstantBuffers(0, 1, &constBuffers[cbufIdx]);
     if (tex && samplerState)
     {
         // Set the sampler state in the pixel shader.

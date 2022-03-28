@@ -393,7 +393,8 @@ bool Graphics::createScreenQuad(std::shared_ptr<Primitive> &prim, bool full, flo
     if (!prim)
         return false;
 
-    prim->addConstBuffer(sizeof(BrightConstantBuffer), true, true);
+    prim->addConstBuffer(sizeof(BrightnessConstantBuffer), false, true);
+    prim->addConstBuffer(sizeof(TonemapConstantBuffer), true, true);
     return true;
 }
 
@@ -451,18 +452,11 @@ void Graphics::renderScene() {
     cb.mView = XMMatrixTranspose(camera.view());
     cb.mProjection = XMMatrixTranspose(camera.projection());
 
-
-    auto updCBuf = [&](LPCWSTR eventName)
-    {
-        startEvent(eventName);
-        quadPrim->updateConstBuffer<SimpleConstantBuffer>(0, cb);
-        endEvent();
-    };
-
     auto drawQuad = [&](LPCWSTR eventName)
     {
         startEvent(eventName);
-        quadPrim->render(simpleShader);
+        quadPrim->updateConstBuffer(0, cb);
+        quadPrim->render(simpleShader, 0);
         endEvent();
     };
 
@@ -470,19 +464,16 @@ void Graphics::renderScene() {
     auto world = XMMatrixTranslation(0.0f, 0.0f, 0.0f);
     cb.mWorld = XMMatrixTranspose(world);
     cb.brightness = 1.0f;
-    updCBuf(L"UpdConstBuffer1");
     drawQuad(L"DrawQuad1");
 
     world = XMMatrixTranslation(0.5f, 0.5f, 0.0f);
     cb.mWorld = XMMatrixTranspose(world);
     cb.brightness = 5.0f;
-    updCBuf(L"UpdConstBuffer2");
     drawQuad(L"DrawQuad2");
 
     world = XMMatrixTranslation(-0.5f, 0.75f, 0.0f);
     cb.mWorld = XMMatrixTranspose(world);
     cb.brightness = 1500.0f;
-    updCBuf(L"UpdConstBuffer3");
     drawQuad(L"DrawQuad3");
 }
 
@@ -499,12 +490,34 @@ bool Graphics::evalMeanBrightnessTex(ID3D11ShaderResourceView*&srv, ID3D11Textur
     setRenderTarget(baseTextureRTV);
     renderScene();
 
-    auto n = static_cast<int>(std::max<double>(std::ceil(std::log2(width)), std::ceil(std::log(height))));
-    auto two_pow_n = 1 << n;
+    // eval brightness
+    ID3D11RenderTargetView* rtv_bright = nullptr;
+    ID3D11ShaderResourceView* srv_bright = nullptr;
+    ID3D11Texture2D* tex_bright = nullptr;
+
+    startEvent(L"DrawScreenQuadEvalBrightness");
+    if (!createRenderTargetTexture(width, height, rtv_bright, srv_bright, samplerState, false))
+        return false;
+
+    BrightnessConstantBuffer cb;
+    ZeroMemory(&cb, sizeof(BrightnessConstantBuffer));
+
+    setViewport(width, height);
+    setRenderTarget(rtv_bright);
+    cb.isBrightnessCalc = 1;
+    screenQuadPrim->updateConstBuffer(0, cb);
+    screenQuadPrim->render(brightShader, 0, samplerState, baseSRV);
+    endEvent();
+    rtv_bright->Release();
 
     // 2 ^ n
-    ID3D11ShaderResourceView* curSRV = baseSRV, *prevSRV = baseSRV;
+    auto n = static_cast<int>(std::max<double>(std::ceil(std::log2(width)), std::ceil(std::log(height))));
+    auto two_pow_n = 1 << n;
+    ID3D11ShaderResourceView* curSRV = srv_bright, *prevSRV = baseSRV;
     ID3D11Texture2D* resTex2D = nullptr;
+
+    cb.isBrightnessCalc = 0;
+    screenQuadPrim->updateConstBuffer(0, cb);
     for (; n >= 0; n--, two_pow_n >>= 1)
     {
         ID3D11RenderTargetView* rtv_2n = nullptr;
@@ -518,7 +531,7 @@ bool Graphics::evalMeanBrightnessTex(ID3D11ShaderResourceView*&srv, ID3D11Textur
 
         setViewport(two_pow_n, two_pow_n);
         setRenderTarget(rtv_2n);
-        screenQuadPrim->render(brightShader, samplerState, curSRV);
+        screenQuadPrim->render(brightShader, 0, samplerState, curSRV);
         endEvent();
 
         if (cpuAccessFlag)
@@ -574,26 +587,20 @@ void Graphics::render() {
     setViewport(width, height);
     setRenderTarget(swapChainRTV);
 
-    BrightConstantBuffer b;
-    ZeroMemory(&b, sizeof(BrightConstantBuffer));
+    TonemapConstantBuffer b;
+    ZeroMemory(&b, sizeof(TonemapConstantBuffer));
     b.meanBrightness = brightness;
 
-    startEvent(L"UpdScreenQuadConstBuf");
-    b.isBrightnessWindow = 0;
-    screenQuadPrim->updateConstBuffer<BrightConstantBuffer>(0, b);
-    endEvent();
-
     startEvent(L"DrawScreenQuad");
-    screenQuadPrim->render(tonemapShader, samplerState, baseSRV);
+    b.isBrightnessWindow = 0;
+    screenQuadPrim->updateConstBuffer(1, b);
+    screenQuadPrim->render(tonemapShader, 1, samplerState, baseSRV);
     endEvent();
-
-    startEvent(L"UpdBrightQuadConstBuf");
-    b.isBrightnessWindow = 1;
-    screenQuadPrim->updateConstBuffer<BrightConstantBuffer>(0, b);
-    endEvent();
-
+    
     startEvent(L"DrawBrightQuad");
-    brightQuadPrim->render(tonemapShader, samplerState, brightnessPixelSRV);
+    b.isBrightnessWindow = 1;
+    brightQuadPrim->updateConstBuffer(1, b);
+    brightQuadPrim->render(tonemapShader, 1, samplerState, brightnessPixelSRV);
     endEvent();
 
     if (brightnessPixelSRV)

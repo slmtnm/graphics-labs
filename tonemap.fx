@@ -1,7 +1,7 @@
 Texture2D tex : register(t0);
 SamplerState samLinear : register(s0);
 
-cbuffer BrightConstantBuffer : register(b0)
+cbuffer TonemapConstantBuffer : register(b0)
 {
     int isBrightnessWindow;
     float meanBrightness;

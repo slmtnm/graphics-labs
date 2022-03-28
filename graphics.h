@@ -111,13 +111,18 @@ private:
         float _dummy[15];
     };
 
-    struct BrightConstantBuffer
+    struct TonemapConstantBuffer
     {
         int isBrightnessWindow;
         float meanBrightness;
         int _dummy[14];
     };
 
+    struct BrightnessConstantBuffer
+    {
+        int isBrightnessCalc;
+        int _dummy[15];
+    };
 
     Camera camera;
 

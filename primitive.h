@@ -17,10 +17,10 @@ public:
     void updateConstBuffer(UINT cbufIdx, ConstBuffer const& cb)
     {
         auto graphics = Graphics::get();
-        graphics->getContext()->UpdateSubresource(constBuffers[cbufIdx], cbufIdx, nullptr, &cb, 0, 0);
+        graphics->getContext()->UpdateSubresource(constBuffers[cbufIdx], 0, nullptr, &cb, 0, 0);
     }
 
-    void render(Shader const& shader, ID3D11SamplerState* samplerState = nullptr, ID3D11ShaderResourceView* tex = nullptr);
+    void render(Shader const& shader, size_t cbufIdx, ID3D11SamplerState* samplerState = nullptr, ID3D11ShaderResourceView* tex = nullptr);
 
 private:
     template<typename VertexType>
