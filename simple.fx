@@ -10,7 +10,7 @@ cbuffer SimpleConstantBuffer : register( b0 )
     float4 LightDir[4];
     float4 LightCutoff;
     float4 LightIntensity;
-    int _dummy[24];
+    int _dummy[8];
 }
 
 //--------------------------------------------------------------------------------------
