@@ -16,6 +16,12 @@
     <Filter Include="Graphics\Primitive">
       <UniqueIdentifier>{9a3a4293-9804-4137-8650-687a64b4233b}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Graphics\Shader">
+      <UniqueIdentifier>{8ef3acab-5bb3-4805-a9cc-a05126ac2408}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="Graphics\Light">
+      <UniqueIdentifier>{1bbb1398-a50a-40c5-b8df-b296e976ce4d}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="camera.cpp">
@@ -28,11 +34,11 @@
       <Filter>Window</Filter>
     </ClCompile>
     <ClCompile Include="main.cpp" />
-    <ClCompile Include="Shader.cpp">
-      <Filter>Graphics</Filter>
-    </ClCompile>
     <ClCompile Include="primitive.cpp">
       <Filter>Graphics\Primitive</Filter>
+    </ClCompile>
+    <ClCompile Include="Shader.cpp">
+      <Filter>Graphics\Shader</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -45,11 +51,14 @@
     <ClInclude Include="window.h">
       <Filter>Window</Filter>
     </ClInclude>
-    <ClInclude Include="Shader.h">
-      <Filter>Graphics</Filter>
-    </ClInclude>
     <ClInclude Include="primitive.h">
       <Filter>Graphics\Primitive</Filter>
+    </ClInclude>
+    <ClInclude Include="Shader.h">
+      <Filter>Graphics\Shader</Filter>
+    </ClInclude>
+    <ClInclude Include="spotlight.h">
+      <Filter>Graphics\Light</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

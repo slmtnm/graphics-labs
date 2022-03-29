@@ -43,6 +43,10 @@ public:
 
     void rotate(int mouseDeltaX, int mouseDeltaY);
 
+    void resetLightIntensity(int lightIndex);
+    void increaseLightIntensity(int lightIndex);
+    void decreaseLightIntensity(int lightIndex);
+
 private:
     void startEvent(LPCWSTR eventName);
     void endEvent();
@@ -63,7 +67,6 @@ private:
     void setViewport(UINT width, UINT height);
     void setRenderTarget(ID3D11RenderTargetView* rtv);
 
-    bool createCube();
     bool createQuad();
     bool createScreenQuad(std::shared_ptr<Primitive> &prim, bool full, float val = 0.0f);
 
@@ -92,6 +95,7 @@ private:
     struct SimpleVertex
     {
         XMFLOAT3 Pos;
+        XMFLOAT3 Norm;
         XMFLOAT4 Color;
     };
 
@@ -107,8 +111,11 @@ private:
         XMMATRIX mWorld;
         XMMATRIX mView;
         XMMATRIX mProjection;
-        float brightness;
-        float _dummy[15];
+        XMFLOAT4 LightPos[4];
+        XMFLOAT4 LightDir[4];
+        float LightCutoff[4];
+        float LightIntensity[4]; // only first component is used
+        int _dummy[12];
     };
 
     struct BrightConstantBuffer
@@ -123,7 +130,7 @@ private:
 
     Shader 
         simpleShader, brightShader, tonemapShader;
-    std::unique_ptr<Primitive> cubePrim, quadPrim; // cubePrim unused because scene has changed
+    std::unique_ptr<Primitive> quadPrim;
     std::shared_ptr<Primitive> screenQuadPrim, brightQuadPrim;
 
     std::chrono::system_clock::time_point start;
@@ -144,6 +151,9 @@ private:
 
     // last frame timestamp
     DWORD lastFrame = timeGetTime();
+
+    // lighting settings
+    float lightIntensity[3] = { 1.0f, 1.0f, 1.0f };
 
     UINT width, height;
 };

@@ -161,6 +161,7 @@
   <ItemGroup>
     <ClInclude Include="camera.h" />
     <ClInclude Include="graphics.h" />
+    <ClInclude Include="spotlight.h" />
     <ClInclude Include="primitive.h" />
     <ClInclude Include="Shader.h" />
     <ClInclude Include="window.h" />
