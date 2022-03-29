@@ -13,6 +13,8 @@
 using namespace DirectX;
 
 class Primitive;
+template<typename T>
+class ConstBuffer;
 
 class Graphics {
 public:
@@ -137,6 +139,10 @@ private:
         simpleShader, brightShader, tonemapShader;
     std::unique_ptr<Primitive> quadPrim;
     std::shared_ptr<Primitive> screenQuadPrim, brightQuadPrim;
+
+    std::unique_ptr<ConstBuffer<SimpleConstantBuffer>> simpleCbuf;
+    std::unique_ptr<ConstBuffer<BrightnessConstantBuffer>> brightnessCbuf;
+    std::unique_ptr<ConstBuffer<TonemapConstantBuffer>> tonemapCbuf;
 
     std::chrono::system_clock::time_point start;
 

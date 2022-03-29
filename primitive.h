@@ -4,23 +4,18 @@
 #include <d3d11_1.h>
 #include <any>
 #include "graphics.h"
+#include "const_buffer.h"
 
 
 class Primitive
 {
 public:
-    UINT addConstBuffer(UINT cBufSize, bool boundVS, bool boundPS);
-
     void cleanup();
 
-    template<typename ConstBuffer>
-    void updateConstBuffer(UINT cbufIdx, ConstBuffer const& cb)
-    {
-        auto graphics = Graphics::get();
-        graphics->getContext()->UpdateSubresource(constBuffers[cbufIdx], 0, nullptr, &cb, 0, 0);
-    }
-
-    void render(Shader const& shader, size_t cbufIdx, ID3D11SamplerState* samplerState = nullptr, ID3D11ShaderResourceView* tex = nullptr);
+    void render(Shader const& shader,
+        std::vector<std::shared_ptr<AppliedConstBuffer>> const& constBuffers,
+        std::vector<UINT> cbufRegister,
+        ID3D11SamplerState* samplerState = nullptr, ID3D11ShaderResourceView* tex = nullptr);
 
 private:
     template<typename VertexType>
@@ -71,13 +66,10 @@ private:
     UINT iCount;
     ID3D11Buffer* vertexBuffer = nullptr;
     ID3D11Buffer* indexBuffer = nullptr;
-    std::vector<ID3D11Buffer*> constBuffers;
     std::shared_ptr<Graphics> graphics;
     UINT stride;
     UINT offset;
 
-    bool boundVS;
-    bool boundPS;
 
     friend class PrimitiveFactory;
 };

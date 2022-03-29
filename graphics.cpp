@@ -12,6 +12,7 @@
 #include "shader.h"
 #include "primitive.h"
 #include "spotlight.h"
+#include "const_buffer.h"
 
 
 std::shared_ptr<Graphics> Graphics::inst(new Graphics);
@@ -326,7 +327,6 @@ bool Graphics::createQuad()
     quadPrim = PrimitiveFactory::create<SimpleVertex>(vertices, 4, indices, 6);
     if (!quadPrim)
         return false;
-    quadPrim->addConstBuffer(sizeof(SimpleConstantBuffer), true, true);
     return true;
 }
 
@@ -351,9 +351,6 @@ bool Graphics::createScreenQuad(std::shared_ptr<Primitive> &prim, bool full, flo
     prim = PrimitiveFactory::create<TextureVertex>(vertices, 4, indices, 6);
     if (!prim)
         return false;
-
-    prim->addConstBuffer(sizeof(BrightnessConstantBuffer), false, true);
-    prim->addConstBuffer(sizeof(TonemapConstantBuffer), true, true);
     return true;
 }
 
@@ -363,6 +360,10 @@ bool Graphics::initGeometry() {
     success &= createQuad();
     success &= createScreenQuad(screenQuadPrim, true);
     success &= createScreenQuad(brightQuadPrim, false, 0.8f);
+
+    simpleCbuf = std::make_unique<ConstBuffer<SimpleConstantBuffer>>();
+    brightnessCbuf = std::make_unique<ConstBuffer<BrightnessConstantBuffer>>();
+    tonemapCbuf = std::make_unique<ConstBuffer<TonemapConstantBuffer>>();
 
     return success;
 }
@@ -433,8 +434,8 @@ void Graphics::renderScene() {
     cb.LightIntensity[2] = lightIntensity[2];
 
     startEvent(L"DrawQuad1");
-    quadPrim->updateConstBuffer<SimpleConstantBuffer>(0, cb);
-    quadPrim->render(simpleShader, 0);
+    simpleCbuf->update(cb);
+    quadPrim->render(simpleShader, { simpleCbuf->appliedConstBuffer() }, {0});
     endEvent();
 }
 
@@ -466,8 +467,8 @@ bool Graphics::evalMeanBrightnessTex(ID3D11ShaderResourceView*&srv, ID3D11Textur
     setViewport(width, height);
     setRenderTarget(rtv_bright);
     cb.isBrightnessCalc = 1;
-    screenQuadPrim->updateConstBuffer(0, cb);
-    screenQuadPrim->render(brightShader, 0, samplerState, baseSRV);
+    brightnessCbuf->update(cb);
+    screenQuadPrim->render(brightShader, { brightnessCbuf->appliedConstBuffer() }, { 0 }, samplerState, baseSRV);
     endEvent();
     rtv_bright->Release();
 
@@ -478,7 +479,7 @@ bool Graphics::evalMeanBrightnessTex(ID3D11ShaderResourceView*&srv, ID3D11Textur
     ID3D11Texture2D* resTex2D = nullptr;
 
     cb.isBrightnessCalc = 0;
-    screenQuadPrim->updateConstBuffer(0, cb);
+    brightnessCbuf->update(cb);
     for (; n >= 0; n--, two_pow_n >>= 1)
     {
         ID3D11RenderTargetView* rtv_2n = nullptr;
@@ -492,7 +493,7 @@ bool Graphics::evalMeanBrightnessTex(ID3D11ShaderResourceView*&srv, ID3D11Textur
 
         setViewport(two_pow_n, two_pow_n);
         setRenderTarget(rtv_2n);
-        screenQuadPrim->render(brightShader, 0, samplerState, curSRV);
+        screenQuadPrim->render(brightShader, { brightnessCbuf->appliedConstBuffer() }, { 0 }, samplerState, curSRV);
         endEvent();
 
         if (cpuAccessFlag)
@@ -556,20 +557,20 @@ void Graphics::render() {
     setViewport(width, height);
     setRenderTarget(swapChainRTV);
 
-    TonemapConstantBuffer b;
-    ZeroMemory(&b, sizeof(TonemapConstantBuffer));
-    b.meanBrightness = curMeanBrightness;
+    TonemapConstantBuffer cb;
+    ZeroMemory(&cb, sizeof(TonemapConstantBuffer));
+    cb.meanBrightness = curMeanBrightness;
 
     startEvent(L"DrawScreenQuad");
-    b.isBrightnessWindow = 0;
-    screenQuadPrim->updateConstBuffer(1, b);
-    screenQuadPrim->render(tonemapShader, 1, samplerState, baseSRV);
+    cb.isBrightnessWindow = 0;
+    tonemapCbuf->update(cb);
+    screenQuadPrim->render(tonemapShader, { tonemapCbuf->appliedConstBuffer() }, { 0 }, samplerState, baseSRV);
     endEvent();
     
     startEvent(L"DrawBrightQuad");
-    b.isBrightnessWindow = 1;
-    brightQuadPrim->updateConstBuffer(1, b);
-    brightQuadPrim->render(tonemapShader, 1, samplerState, brightnessPixelSRV);
+    cb.isBrightnessWindow = 1;
+    tonemapCbuf->update(cb);
+    brightQuadPrim->render(tonemapShader, { tonemapCbuf->appliedConstBuffer() }, { 0 }, samplerState, brightnessPixelSRV);
     endEvent();
 
     if (brightnessPixelSRV)
@@ -591,6 +592,10 @@ void Graphics::cleanup() {
     simpleShader.cleanup();
     brightShader.cleanup();
     tonemapShader.cleanup();
+
+    simpleCbuf->cleanup();
+    brightnessCbuf->cleanup();
+    tonemapCbuf->cleanup();
 
     quadPrim->cleanup();
     screenQuadPrim->cleanup();

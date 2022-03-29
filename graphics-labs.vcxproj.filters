@@ -22,6 +22,9 @@
     <Filter Include="Graphics\Light">
       <UniqueIdentifier>{1bbb1398-a50a-40c5-b8df-b296e976ce4d}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Graphics\Const buffer">
+      <UniqueIdentifier>{69f90368-a132-4b92-9b75-9a999da5e026}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="camera.cpp">
@@ -39,6 +42,9 @@
     </ClCompile>
     <ClCompile Include="Shader.cpp">
       <Filter>Graphics\Shader</Filter>
+    </ClCompile>
+    <ClCompile Include="const_buffer.cpp">
+      <Filter>Graphics\Const buffer</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -59,6 +65,9 @@
     </ClInclude>
     <ClInclude Include="spotlight.h">
       <Filter>Graphics\Light</Filter>
+    </ClInclude>
+    <ClInclude Include="const_buffer.h">
+      <Filter>Graphics\Const buffer</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
