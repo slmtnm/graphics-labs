@@ -326,7 +326,7 @@ bool Graphics::createQuad()
     quadPrim = PrimitiveFactory::create<SimpleVertex>(vertices, 4, indices, 6);
     if (!quadPrim)
         return false;
-    quadPrim->addConstBuffer(sizeof(SimpleConstantBuffer), true, false);
+    quadPrim->addConstBuffer(sizeof(SimpleConstantBuffer), true, true);
     return true;
 }
 
@@ -432,11 +432,8 @@ void Graphics::renderScene() {
     cb.LightIntensity[1] = lightIntensity[1];
     cb.LightIntensity[2] = lightIntensity[2];
 
-    startEvent(L"UpdConstBuffer1");
-    quadPrim->updateConstBuffer<SimpleConstantBuffer>(0, cb);
-    endEvent();
-
     startEvent(L"DrawQuad1");
+    quadPrim->updateConstBuffer<SimpleConstantBuffer>(0, cb);
     quadPrim->render(simpleShader, 0);
     endEvent();
 }
