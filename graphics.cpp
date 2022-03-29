@@ -11,6 +11,7 @@
 #include "camera.h"
 #include "shader.h"
 #include "primitive.h"
+#include "spotlight.h"
 
 
 std::shared_ptr<Graphics> Graphics::inst(new Graphics);
@@ -151,10 +152,11 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
     D3D11_INPUT_ELEMENT_DESC simpleLayout[] =
     {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
     };
 
-    graphics->simpleShader.makeShaders(L"simple.fx", simpleLayout, 2);
+    graphics->simpleShader.makeShaders(L"simple.fx", simpleLayout, 3);
 
     D3D11_INPUT_ELEMENT_DESC brightLayout[] =
     {
@@ -301,49 +303,6 @@ bool Graphics::createCPUAccessedTexture(ID3D11Texture2D*& dst, ID3D11Texture2D* 
     return true;
 }
 
-bool Graphics::createCube() {
-    // Create vertex buffer
-    SimpleVertex vertices[] =
-    {
-        { XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f) },
-        { XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f) },
-        { XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT4(0.0f, 1.0f, 1.0f, 1.0f) },
-        { XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) },
-        { XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT4(1.0f, 0.0f, 1.0f, 1.0f) },
-        { XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT4(1.0f, 1.0f, 0.0f, 1.0f) },
-        { XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) },
-        { XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f) },
-    };
-
-    // Create index buffer
-    UINT indices[] =
-    {
-        3,1,0,
-        2,1,3,
-
-        0,5,4,
-        1,5,0,
-
-        3,4,7,
-        0,4,3,
-
-        1,6,5,
-        2,6,1,
-
-        2,7,6,
-        3,7,2,
-
-        6,4,5,
-        7,4,6,
-    };
-
-    cubePrim = PrimitiveFactory::create<SimpleVertex>(vertices, 8, indices, 36);
-    if (!cubePrim)
-        return false;
-
-    cubePrim->addConstBuffer(sizeof(SimpleConstantBuffer), true, false);
-    return true;
-}
 
 bool Graphics::createQuad()
 {
@@ -351,10 +310,10 @@ bool Graphics::createQuad()
     auto color = XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f);
     SimpleVertex vertices[] =
     {
-        { XMFLOAT3(-1.0f, -1.0f, 0.0f), color },
-        { XMFLOAT3(1.0f, -1.0f, 0.0f), color },
-        { XMFLOAT3(1.0f, 1.0f, 0.0f), color },
-        { XMFLOAT3(-1.0f, 1.0f, 0.0f), color },
+        { XMFLOAT3(-5.0f, -5.0f, 10.0f), XMFLOAT3(0.0f, 0.0f, -1.0f), color},
+        { XMFLOAT3(5.0f, -5.0f, 10.0f), XMFLOAT3(0.0f, 0.0f, -1.0f), color},
+        { XMFLOAT3(5.0f, 5.0f, 10.0f), XMFLOAT3(0.0f, 0.0f, -1.0f), color},
+        { XMFLOAT3(-5.0f, 5.0f, 10.0f), XMFLOAT3(0.0f, 0.0f, -1.0f), color},
     };
 
     // Create index buffer
@@ -446,35 +405,40 @@ void Graphics::endEvent()
 }
 
 void Graphics::renderScene() {
-    // Update variables
+    // Render quad
     SimpleConstantBuffer cb;
     ZeroMemory(&cb, sizeof(SimpleConstantBuffer));
     cb.mView = XMMatrixTranspose(camera.view());
     cb.mProjection = XMMatrixTranspose(camera.projection());
+    cb.mWorld = XMMatrixIdentity();
 
-    auto drawQuad = [&](LPCWSTR eventName)
-    {
-        startEvent(eventName);
-        quadPrim->updateConstBuffer(0, cb);
-        quadPrim->render(simpleShader, 0);
-        endEvent();
-    };
+    // Setup lights
+    cb.LightPos[0] = XMFLOAT4(-2, 0, 0, 1);
+    cb.LightPos[1] = XMFLOAT4(2, 0, 0, 1);
+    cb.LightPos[2] = XMFLOAT4(0, 3, 0, 1);
+    cb.LightPos[3] = XMFLOAT4(0, 5, 0, 1);
 
-    // Render quads
-    auto world = XMMatrixTranslation(0.0f, 0.0f, 0.0f);
-    cb.mWorld = XMMatrixTranspose(world);
-    cb.brightness = 1.0f;
-    drawQuad(L"DrawQuad1");
+    cb.LightDir[0] = XMFLOAT4(0, 0, 1, 1);
+    cb.LightDir[1] = XMFLOAT4(0, 0, 1, 1);
+    cb.LightDir[2] = XMFLOAT4(0, 0, 1, 1);
+    cb.LightDir[3] = XMFLOAT4(0, 0, 1, 1);
 
-    world = XMMatrixTranslation(0.5f, 0.5f, 0.0f);
-    cb.mWorld = XMMatrixTranspose(world);
-    cb.brightness = 5.0f;
-    drawQuad(L"DrawQuad2");
+    cb.LightCutoff[0] = cosf(XMConvertToRadians(15));
+    cb.LightCutoff[1] = cosf(XMConvertToRadians(15));
+    cb.LightCutoff[2] = cosf(XMConvertToRadians(15));
+    cb.LightCutoff[3] = cosf(XMConvertToRadians(10));
 
-    world = XMMatrixTranslation(-0.5f, 0.75f, 0.0f);
-    cb.mWorld = XMMatrixTranspose(world);
-    cb.brightness = 1500.0f;
-    drawQuad(L"DrawQuad3");
+    cb.LightIntensity[0] = lightIntensity[0];
+    cb.LightIntensity[1] = lightIntensity[1];
+    cb.LightIntensity[2] = lightIntensity[2];
+
+    startEvent(L"UpdConstBuffer1");
+    quadPrim->updateConstBuffer<SimpleConstantBuffer>(0, cb);
+    endEvent();
+
+    startEvent(L"DrawQuad1");
+    quadPrim->render(simpleShader, 0);
+    endEvent();
 }
 
 void Graphics::setRenderTarget(ID3D11RenderTargetView* rtv)
@@ -698,4 +662,14 @@ void Graphics::setMoveDown(bool move) { moveDown = move; }
 
 void Graphics::rotate(int mouseDeltaX, int mouseDeltaY) {
     camera.rotate(mouseDeltaX * sensitivity, mouseDeltaY * sensitivity);
+}
+
+void Graphics::resetLightIntensity(int lightIndex) {
+    lightIntensity[lightIndex] = 1.0f;
+}
+void Graphics::increaseLightIntensity(int lightIndex) {
+    lightIntensity[lightIndex] = min(lightIntensity[lightIndex] + 1.0f, 10000.0f);
+}
+void Graphics::decreaseLightIntensity(int lightIndex) {
+    lightIntensity[lightIndex] = max(lightIntensity[lightIndex] - 1.0f, 0.0f);
 }

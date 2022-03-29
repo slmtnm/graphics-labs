@@ -63,6 +63,39 @@ LRESULT CALLBACK Window::WndProc(
         case 0x51: // Q
             PostMessage(hWnd, WM_CLOSE, 0, 0);
             break;
+        case 0x30: // 0
+            graphics->resetLightIntensity(0);
+            graphics->resetLightIntensity(1);
+            graphics->resetLightIntensity(2);
+            break;
+        case 0x31: // 1
+            graphics->increaseLightIntensity(0);
+            break;
+        case 0x32: // 2
+            graphics->decreaseLightIntensity(0);
+            break;
+        case 0x33: // 1
+            graphics->increaseLightIntensity(1);
+            break;
+        case 0x34: // 2
+            graphics->decreaseLightIntensity(1);
+            break;
+        case 0x35: // 1
+            graphics->increaseLightIntensity(2);
+            break;
+        case 0x36: // 2
+            graphics->decreaseLightIntensity(2);
+            break;
+        case VK_OEM_PLUS: // +
+            graphics->increaseLightIntensity(0);
+            graphics->increaseLightIntensity(1);
+            graphics->increaseLightIntensity(2);
+            break;
+        case VK_OEM_MINUS: // -
+            graphics->decreaseLightIntensity(0);
+            graphics->decreaseLightIntensity(1);
+            graphics->decreaseLightIntensity(2);
+            break;
         }
         break;
     }

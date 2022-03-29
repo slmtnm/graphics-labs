@@ -6,20 +6,28 @@ cbuffer SimpleConstantBuffer : register( b0 )
     matrix World;
     matrix View;
     matrix Projection;
-    float brightness;
-    float _dummy[15];
+    float4 LightPos[4];
+    float4 LightDir[4];
+    float4 LightCutoff;
+    float4 LightIntensity;
+    int _dummy[24];
 }
 
+//--------------------------------------------------------------------------------------
+// Vertex Shader's input and output vertex format
+//--------------------------------------------------------------------------------------
 struct VS_INPUT
 {
     float4 Pos : POSITION;
+    float3 Norm : NORMAL;
     float4 Color : COLOR0;
 };
-
 
 struct VS_OUTPUT
 {
     float4 Pos : SV_POSITION;
+    float3 Norm : TEXCOORD0;
+    float3 WorldPos: TEXCOORD1;
     float4 Color : COLOR0;
 };
 
@@ -32,7 +40,10 @@ VS_OUTPUT VS( VS_INPUT input )
     output.Pos = mul( input.Pos, World );
     output.Pos = mul( output.Pos, View );
     output.Pos = mul( output.Pos, Projection );
-    output.Color = float4(float3(input.Color[0], input.Color[1], input.Color[2]) * brightness, input.Color[3]);
+    output.Color = input.Color;
+    output.Norm = input.Norm;
+    output.WorldPos = mul(input.Pos, World);
+
     return output;
 }
 
@@ -42,5 +53,26 @@ VS_OUTPUT VS( VS_INPUT input )
 //--------------------------------------------------------------------------------------
 float4 PS(VS_OUTPUT input) : SV_Target
 {
-    return input.Color;
+    float4 resultColor = input.Color;
+
+    for (uint i = 0; i < 3; i++) {
+		// light color
+		float4 lightColor = float4(1.0f, 1.0f, 1.0f, 1.0f) * LightIntensity[i];
+
+		// ambient component
+		float ambientStrength = 0.1;
+		float4 ambient = lightColor * ambientStrength;
+
+        // direction from point to light
+        float3 lightDir = normalize(LightPos[i].xyz - input.WorldPos.xyz);
+
+		float theta = dot(LightDir[i], - lightDir);
+		if (theta > LightCutoff[i]) {
+            // diffuse component
+            float4 diffuse = max(dot(input.Norm, lightDir), 0.0) * float4(1.0f, 1.0f, 1.0f, 1.0f);
+            resultColor *= ambient + diffuse;
+        }
+    }
+
+    return resultColor;
 }
