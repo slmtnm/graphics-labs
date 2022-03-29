@@ -378,7 +378,7 @@ void Graphics::moveCamera() {
     if (moveUp) moveDirection += { 0.0f, 1.0f, 0.0f, 0.0f };
     if (moveDown) moveDirection += { 0.0f, -1.0f, 0.0f, 0.0f };
 
-    float deltaTime = (timeGetTime() - lastFrame) / 1000.0f;
+    deltaTime = (timeGetTime() - lastFrame) / 1000.0f;
     moveDirection *= moveSpeed * deltaTime;
 
     if (XMVectorGetX(XMVector3Length(moveDirection)) > 1e-4) {
@@ -543,14 +543,22 @@ void Graphics::render() {
     bool brightness_ok = evalMeanBrightnessTex(brightnessPixelSRV, brightnessPixelTex2D);
     if (!brightness_ok)
         printf("Failed eval mean brightness :(");
-    auto brightness = calcMeanBrightness(brightnessPixelTex2D);
+    auto meanBrightness = calcMeanBrightness(brightnessPixelTex2D);
+
+    const float adaptationTime = 1.5f;
+    float curMeanBrightness;
+    if (std::fabs(prevMeanBrightness + 1) > 1e-6)
+        curMeanBrightness = prevMeanBrightness + (meanBrightness - prevMeanBrightness) * (1 - exp(-deltaTime / adaptationTime));
+    else
+        curMeanBrightness = meanBrightness;
+    prevMeanBrightness = curMeanBrightness;
 
     setViewport(width, height);
     setRenderTarget(swapChainRTV);
 
     TonemapConstantBuffer b;
     ZeroMemory(&b, sizeof(TonemapConstantBuffer));
-    b.meanBrightness = brightness;
+    b.meanBrightness = curMeanBrightness;
 
     startEvent(L"DrawScreenQuad");
     b.isBrightnessWindow = 0;
@@ -664,9 +672,11 @@ void Graphics::rotate(int mouseDeltaX, int mouseDeltaY) {
 void Graphics::resetLightIntensity(int lightIndex) {
     lightIntensity[lightIndex] = 1.0f;
 }
+
 void Graphics::increaseLightIntensity(int lightIndex) {
-    lightIntensity[lightIndex] = min(lightIntensity[lightIndex] + 1.0f, 10000.0f);
+    lightIntensity[lightIndex] = min(lightIntensity[lightIndex] + 10.0f, 10000.0f);
 }
+
 void Graphics::decreaseLightIntensity(int lightIndex) {
-    lightIntensity[lightIndex] = max(lightIntensity[lightIndex] - 1.0f, 0.0f);
+    lightIntensity[lightIndex] = max(lightIntensity[lightIndex] - 10.0f, 0.0f);
 }

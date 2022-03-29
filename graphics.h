@@ -140,6 +140,9 @@ private:
 
     std::chrono::system_clock::time_point start;
 
+    float prevMeanBrightness = -1.0f;
+    float deltaTime;
+
     // movement flags
     bool moveRight = false;
     bool moveLeft = false;
