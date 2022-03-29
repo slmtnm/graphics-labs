@@ -18,7 +18,7 @@ cbuffer SimpleConstantBuffer : register( b0 )
 //--------------------------------------------------------------------------------------
 struct VS_INPUT
 {
-    float4 Pos : POSITION;
+    float3 Pos : POSITION;
     float3 Norm : NORMAL;
     float4 Color : COLOR0;
 };
@@ -37,7 +37,7 @@ struct VS_OUTPUT
 VS_OUTPUT VS( VS_INPUT input )
 {
     VS_OUTPUT output = (VS_OUTPUT)0;
-    output.Pos = mul( input.Pos, World );
+    output.Pos = mul( float4(input.Pos, 1.0f), World );
     output.Pos = mul( output.Pos, View );
     output.Pos = mul( output.Pos, Projection );
     output.Color = input.Color;

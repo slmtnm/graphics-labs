@@ -11,7 +11,7 @@ cbuffer TonemapConstantBuffer : register(b0)
 
 struct VS_INPUT
 {
-    float4 Pos : POSITION;
+    float3 Pos : POSITION;
     float4 Color : COLOR0;
     float2 Tex : TEXCOORD0;
 };
@@ -67,7 +67,7 @@ float3 TonemapFilmic(float3 color)
 VS_OUTPUT VS(VS_INPUT input)
 {
     VS_OUTPUT output = (VS_OUTPUT)0;
-    output.Pos = input.Pos;
+    output.Pos = float4(input.Pos, 1.0f);
     output.Color = input.Color;
     output.Tex = input.Tex;
     return output;
