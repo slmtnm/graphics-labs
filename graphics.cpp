@@ -1,15 +1,26 @@
-#include <optional>
 #include <vector>
+#include <string>
 #include <d3d11_1.h>
-#include <d3dcompiler.h>
 #include <directxcolors.h>
 #include <chrono>
+#include <cmath>
+#include <tuple>
+#include <algorithm>
 
 #include "graphics.h"
+#include "camera.h"
+#include "shader.h"
+#include "primitive.h"
+#include "spotlight.h"
+#include "const_buffer.h"
+
+
+std::shared_ptr<Graphics> Graphics::inst(new Graphics);
 
 
 std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
-    std::shared_ptr<Graphics> graphics(new Graphics);
+    // alias
+    auto graphics = inst;
 
     graphics->start = std::chrono::system_clock::now();
 
@@ -100,7 +111,7 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
         ZeroMemory(&sd, sizeof(sd));
         sd.Width = width;
         sd.Height = height;
-        sd.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        sd.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
         sd.SampleDesc.Count = 1;
         sd.SampleDesc.Quality = 0;
         sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
@@ -119,7 +130,7 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
         sd.BufferCount = 1;
         sd.BufferDesc.Width = width;
         sd.BufferDesc.Height = height;
-        sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
         sd.BufferDesc.RefreshRate.Numerator = 60;
         sd.BufferDesc.RefreshRate.Denominator = 1;
         sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
@@ -138,19 +149,82 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
     if (FAILED(hr))
         return nullptr;
 
+    graphics->initShaders();
+    
+    if (!graphics->createRenderTargetTexture(width, height, inst->baseTextureRTV, inst->baseSRV, inst->samplerState, true))
+        return nullptr; 
+
     // Create a render target view
     ID3D11Texture2D* pBackBuffer = nullptr;
     hr = graphics->swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&pBackBuffer));
     if (FAILED(hr))
         return nullptr;
 
-    hr = graphics->device->CreateRenderTargetView(pBackBuffer, nullptr, &graphics->renderTargetView);
+    hr = graphics->device->CreateRenderTargetView(pBackBuffer, nullptr, &graphics->swapChainRTV);
     pBackBuffer->Release();
     if (FAILED(hr))
         return nullptr;
 
-    graphics->context->OMSetRenderTargets(1, &graphics->renderTargetView, nullptr);
+    if (!graphics->initGeometry())
+        return nullptr;
 
+    graphics->initLights();
+
+    graphics->width = width;
+    graphics->height = height;
+
+    return graphics;
+}
+
+void Graphics::initShaders()
+{
+    auto graphics = inst; // alias
+
+    // Create constant buffers
+    graphics->simpleCbuf = std::make_unique<ConstBuffer<SimpleConstantBuffer>>();
+    graphics->brightnessCbuf = std::make_unique<ConstBuffer<BrightnessConstantBuffer>>();
+    graphics->tonemapCbuf = std::make_unique<ConstBuffer<TonemapConstantBuffer>>();
+
+    // Define the input layout
+    D3D11_INPUT_ELEMENT_DESC simpleLayout[] =
+    {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+    };
+
+    graphics->simpleShader = ShaderFactory::makeShaders(L"simple.fx", simpleLayout, 3);
+    graphics->simpleShader->addConstBuffers({ { graphics->simpleCbuf->appliedConstBuffer(), true, true } });
+
+    D3D11_INPUT_ELEMENT_DESC brightLayout[] =
+    {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 28, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+    };
+
+    graphics->brightShader = ShaderFactory::makeShaders(L"brightness.fx", brightLayout, 3);
+    graphics->brightShader->addConstBuffers({ { graphics->brightnessCbuf->appliedConstBuffer(), false, true } });
+
+    graphics->tonemapShader = ShaderFactory::makeShaders(L"tonemap.fx", brightLayout, 3);
+    graphics->tonemapShader->addConstBuffers({ { graphics->tonemapCbuf->appliedConstBuffer(), false, true } });
+
+}
+
+void Graphics::initLights()
+{
+    spotLights[0] = SpotLight(XMFLOAT3(-2, 0, 0), XMFLOAT3(0, 0, 1), 15.0f, 1.0f);
+    spotLights[1] = SpotLight(XMFLOAT3(2, 0, 0), XMFLOAT3(0, 0, 1), 15.0f, 1.0f);
+    spotLights[2] = SpotLight(XMFLOAT3(0, 3, 0), XMFLOAT3(0, 0, 1), 15.0f, 1.0f);
+}
+
+std::shared_ptr<Graphics> Graphics::get()
+{
+    return inst;
+}
+
+void Graphics::setViewport(UINT width, UINT height)
+{
     // Setup the viewport
     D3D11_VIEWPORT vp;
     ZeroMemory(&vp, sizeof(D3D11_VIEWPORT));
@@ -160,247 +234,389 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
     vp.MaxDepth = 1.0f;
     vp.TopLeftX = 0;
     vp.TopLeftY = 0;
-    graphics->context->RSSetViewports(1, &vp);
-
-    graphics->initGeometry();
-
-    return graphics;
+    inst->context->RSSetViewports(1, &vp);
 }
 
-//--------------------------------------------------------------------------------------
-// Helper for compiling shaders with D3DCompile
-//
-// With VS 11, we could load up prebuilt .cso files instead...
-//--------------------------------------------------------------------------------------
-HRESULT Graphics::CompileShaderFromFile(const WCHAR* szFileName, LPCSTR szEntryPoint, LPCSTR szShaderModel, ID3DBlob** ppBlobOut) {
-    HRESULT hr = S_OK;
+bool Graphics::createRenderTargetTexture(
+    UINT width, UINT height, ID3D11RenderTargetView*& rtv,
+    ID3D11ShaderResourceView*& srv, 
+    ID3D11SamplerState*& samplerState, bool createSamplerState,
+    ID3D11Texture2D** tex)
+{
+    // Setup render target texture
+    D3D11_TEXTURE2D_DESC td;
+    ZeroMemory(&td, sizeof(td));
+    td.Width = width;
+    td.Height = height;
+    td.MipLevels = 1;
+    td.ArraySize = 1;
+    td.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+    td.SampleDesc.Count = 1;
+    td.SampleDesc.Quality = 0;
+    td.Usage = D3D11_USAGE_DEFAULT;
+    td.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+    td.CPUAccessFlags = 0;
 
-    DWORD dwShaderFlags = D3DCOMPILE_ENABLE_STRICTNESS;
-#ifdef _DEBUG
-    // Set the D3DCOMPILE_DEBUG flag to embed debug information in the shaders.
-    // Setting this flag improves the shader debugging experience, but still allows 
-    // the shaders to be optimized and to run exactly the way they will run in 
-    // the release configuration of this program.
-    dwShaderFlags |= D3DCOMPILE_DEBUG;
+    ID3D11Texture2D* rndTargetTexWH = nullptr;
+    auto hr = inst->device->CreateTexture2D(&td, NULL, &rndTargetTexWH);
+    if (FAILED(hr))
+        return false;
 
-    // Disable optimizations to further improve shader debugging
-    dwShaderFlags |= D3DCOMPILE_SKIP_OPTIMIZATION;
-#endif
+    if (tex)
+        *tex = rndTargetTexWH;
 
-    ID3DBlob* pErrorBlob = nullptr;
-    hr = D3DCompileFromFile(szFileName, nullptr, nullptr, szEntryPoint, szShaderModel,
-        dwShaderFlags, 0, ppBlobOut, &pErrorBlob);
-    if (FAILED(hr)) {
-        if (pErrorBlob) {
-            OutputDebugStringA(reinterpret_cast<const char*>(pErrorBlob->GetBufferPointer()));
-            pErrorBlob->Release();
-        }
-        return hr;
-    }
-    if (pErrorBlob) pErrorBlob->Release();
+    // Setup the description of the render target view.
+    D3D11_RENDER_TARGET_VIEW_DESC rtvd;
 
-    return S_OK;
-}
+    rtvd.Format = td.Format;
+    rtvd.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
+    rtvd.Texture2D.MipSlice = 0;
 
-void Graphics::initGeometry() {
-    // Compile the vertex shader
-    ID3DBlob* pVSBlob = nullptr;
-    auto hr = CompileShaderFromFile(L"simple.fx", "VS", "vs_4_0", &pVSBlob);
-    if (FAILED(hr)) {
-        MessageBox(nullptr,
-            L"The FX file cannot be compiled.  Please run this executable from the directory that contains the FX file.", L"Error", MB_OK);
-        return;
-    }
+    hr = inst->device->CreateRenderTargetView(rndTargetTexWH, &rtvd, &rtv);
+    if (FAILED(hr))
+        return false;
 
-    // Create the vertex shader
-    hr = device->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), nullptr, &vertexShader);
-    if (FAILED(hr)) {
-        pVSBlob->Release();
-        return;
-    }
-
-    // Define the input layout
-    D3D11_INPUT_ELEMENT_DESC layout[] =
+    if (createSamplerState)
     {
-        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-    };
-    UINT numElements = ARRAYSIZE(layout);
-
-    // Create the input layout
-    hr = device->CreateInputLayout(layout, numElements, pVSBlob->GetBufferPointer(),
-        pVSBlob->GetBufferSize(), &vertexLayout);
-
-    if (FAILED(hr))
-        return;
-
-    // Set the input layout
-    context->IASetInputLayout(vertexLayout);
-
-    // Compile the pixel shader
-    ID3DBlob* pPSBlob = nullptr;
-    hr = CompileShaderFromFile(L"simple.fx", "PS", "ps_4_0", &pPSBlob);
-    if (FAILED(hr)) {
-        MessageBox(nullptr,
-            L"The FX file cannot be compiled.  Please run this executable from the directory that contains the FX file.", L"Error", MB_OK);
-        return;
+        // Create the sample state
+        D3D11_SAMPLER_DESC sampDesc;
+        ZeroMemory(&sampDesc, sizeof(sampDesc));
+        sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+        sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+        sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+        sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+        sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+        sampDesc.MinLOD = 0;
+        sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
+        hr = inst->device->CreateSamplerState(&sampDesc, &samplerState);
+        if (FAILED(hr))
+            return false;
     }
 
-    // Create the pixel shader
-    hr = device->CreatePixelShader(pPSBlob->GetBufferPointer(), pPSBlob->GetBufferSize(), nullptr, &pixelShader);
-    pPSBlob->Release();
+    // Setup the description of the shader resource view.
+    D3D11_SHADER_RESOURCE_VIEW_DESC srvd;
+    srvd.Format = td.Format;
+    srvd.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+    srvd.Texture2D.MostDetailedMip = 0;
+    srvd.Texture2D.MipLevels = 1;
+
+    // Create the shader resource view.
+    hr = inst->device->CreateShaderResourceView(rndTargetTexWH, &srvd, &srv);
+
+    if (!tex)
+        rndTargetTexWH->Release();
 
     if (FAILED(hr))
-        return;
+        return false;
 
+    return true;
+}
+
+bool Graphics::createCPUAccessedTexture(ID3D11Texture2D*& dst, ID3D11Texture2D* src) {
+    // Setup render target texture
+    D3D11_TEXTURE2D_DESC td;
+
+    src->GetDesc(&td);
+    td.Usage = D3D11_USAGE_STAGING;
+    td.BindFlags = 0;
+    //td.BindFlags = D3D11_BIND_UNORDERED_ACCESS;
+    td.CPUAccessFlags = D3D11_CPU_ACCESS_READ;
+
+    auto hr = inst->device->CreateTexture2D(&td, NULL, &dst);
+    if (FAILED(hr))
+        return false;
+
+    context->CopyResource(dst, src);
+    return true;
+}
+
+
+bool Graphics::createQuad()
+{
     // Create vertex buffer
+    auto color = XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f);
     SimpleVertex vertices[] =
     {
-        { XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT4(0.0f, 0.0f, 1.0f, 1.0f) },
-        { XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT4(0.0f, 1.0f, 0.0f, 1.0f) },
-        { XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT4(0.0f, 1.0f, 1.0f, 1.0f) },
-        { XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f) },
-        { XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT4(1.0f, 0.0f, 1.0f, 1.0f) },
-        { XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT4(1.0f, 1.0f, 0.0f, 1.0f) },
-        { XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT4(1.0f, 1.0f, 1.0f, 1.0f) },
-        { XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f) },
+        { XMFLOAT3(-5.0f, -5.0f, 10.0f), XMFLOAT3(0.0f, 0.0f, -1.0f), color},
+        { XMFLOAT3(5.0f, -5.0f, 10.0f), XMFLOAT3(0.0f, 0.0f, -1.0f), color},
+        { XMFLOAT3(5.0f, 5.0f, 10.0f), XMFLOAT3(0.0f, 0.0f, -1.0f), color},
+        { XMFLOAT3(-5.0f, 5.0f, 10.0f), XMFLOAT3(0.0f, 0.0f, -1.0f), color},
     };
-
-    // Init vertex buffer
-    D3D11_BUFFER_DESC bd;
-    ZeroMemory(&bd, sizeof(bd));
-    bd.Usage = D3D11_USAGE_DEFAULT;
-    bd.ByteWidth = sizeof(vertices);
-    bd.BindFlags = D3D11_BIND_VERTEX_BUFFER;
-    bd.CPUAccessFlags = 0;
-    D3D11_SUBRESOURCE_DATA InitData;
-    ZeroMemory(&InitData, sizeof(InitData));
-    InitData.pSysMem = vertices;
-    hr = device->CreateBuffer(&bd, &InitData, &vertexBuffer);
-    if (FAILED(hr))
-        return;
-
-    // Set vertex buffer
-    UINT stride = sizeof(SimpleVertex);
-    UINT offset = 0;
-    context->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);
 
     // Create index buffer
     UINT indices[] =
     {
-        3,1,0,
-        2,1,3,
-
-        0,5,4,
-        1,5,0,
-
-        3,4,7,
-        0,4,3,
-
-        1,6,5,
-        2,6,1,
-
-        2,7,6,
-        3,7,2,
-
-        6,4,5,
-        7,4,6,
+        0, 2, 1,
+        2, 0, 3
     };
 
-    // Init index buffer
-    bd.Usage = D3D11_USAGE_DEFAULT;
-    bd.ByteWidth = sizeof(indices);
-    bd.BindFlags = D3D11_BIND_INDEX_BUFFER;
-    bd.CPUAccessFlags = 0;
+    quadPrim = PrimitiveFactory::create<SimpleVertex>(vertices, 4, indices, 6);
+    if (!quadPrim)
+        return false;
+    return true;
+}
 
-    //ZeroMemory( &InitData, sizeof(InitData) );
-    InitData.pSysMem = indices;
-    hr = device->CreateBuffer(&bd, &InitData, &indexBuffer);
+
+bool Graphics::createScreenQuad(std::shared_ptr<Primitive> &prim, bool full, float val) {
+    // Create vertex buffer
+    TextureVertex vertices[] =
+    {
+        { XMFLOAT3(-1.0f, full ? -1.0f : val, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f), XMFLOAT2(0.0f, 1.0f)},
+        { XMFLOAT3(full ? 1.0f : -val, full ? -1.0f : val, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f), XMFLOAT2(1.0f, 1.0f)},
+        { XMFLOAT3(full ? 1.0f : -val, 1.0f, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f), XMFLOAT2(1.0f, 0.0f)},
+        { XMFLOAT3(-1.0f, 1.0f, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f), XMFLOAT2(0.0f, 0.0f)},
+    };
+
+    // Create index buffer
+    UINT indices[] =
+    {
+        0, 2, 1,
+        2, 0, 3
+    };
+
+    prim = PrimitiveFactory::create<TextureVertex>(vertices, 4, indices, 6);
+    if (!prim)
+        return false;
+    return true;
+}
+
+
+bool Graphics::initGeometry() {
+    bool success = true;
+    success &= createQuad();
+    success &= createScreenQuad(screenQuadPrim, true);
+    success &= createScreenQuad(brightQuadPrim, false, 0.8f);
+
+    return success;
+}
+
+
+void Graphics::moveCamera() {
+    // Camera movement
+    XMVECTOR moveDirection = { 0.0f, 0.0f, 0.0f, 0.0f };
+    if (moveRight) moveDirection += camera.getRight();
+    if (moveLeft) moveDirection += -camera.getRight();
+    if (moveForward) moveDirection += camera.getDirection();
+    if (moveBackward) moveDirection -= camera.getDirection();
+    if (moveUp) moveDirection += { 0.0f, 1.0f, 0.0f, 0.0f };
+    if (moveDown) moveDirection += { 0.0f, -1.0f, 0.0f, 0.0f };
+
+    deltaTime = (timeGetTime() - lastFrame) / 1000.0f;
+    moveDirection *= moveSpeed * deltaTime;
+
+    if (XMVectorGetX(XMVector3Length(moveDirection)) > 1e-4) {
+        camera.move(moveDirection);
+    }
+
+    lastFrame = timeGetTime();
+}
+
+
+void Graphics::startEvent(LPCWSTR eventName)
+{
+#ifdef _DEBUG
+    annotation->BeginEvent(eventName);
+#endif
+}
+
+
+void Graphics::endEvent()
+{
+#ifdef _DEBUG
+    annotation->EndEvent();
+#endif
+}
+
+void Graphics::renderScene() {
+    // Render quad
+    SimpleConstantBuffer cb;
+    ZeroMemory(&cb, sizeof(SimpleConstantBuffer));
+    cb.mView = XMMatrixTranspose(camera.view());
+    cb.mProjection = XMMatrixTranspose(camera.projection());
+    cb.mWorld = XMMatrixIdentity();
+
+    // Setup lights
+    for (size_t idx = 0; idx < spotLights.size(); idx++) {
+        cb.LightPos[idx] = spotLights[idx].getPosition();
+        cb.LightDir[idx] = spotLights[idx].getDirection();
+        cb.LightCutoff[idx] = spotLights[idx].getCutoff();
+        cb.LightIntensity[idx] = spotLights[idx].getIntensity();
+    }
+
+    startEvent(L"DrawQuad1");
+    simpleCbuf->update(cb);
+    quadPrim->render(simpleShader);
+    endEvent();
+}
+
+void Graphics::setRenderTarget(ID3D11RenderTargetView* rtv)
+{
+    float clearColor[] = { 0.3f, 0.5f, 0.7f, 1.0f };
+    context->ClearRenderTargetView(rtv, clearColor);
+    context->OMSetRenderTargets(1, &rtv, nullptr);
+}
+
+bool Graphics::evalMeanBrightnessTex(ID3D11ShaderResourceView*&srv, ID3D11Texture2D*& tex)
+{
+    setViewport(width, height);
+    setRenderTarget(baseTextureRTV);
+    renderScene();
+
+    // eval brightness
+    ID3D11RenderTargetView* rtv_bright = nullptr;
+    ID3D11ShaderResourceView* srv_bright = nullptr;
+    ID3D11Texture2D* tex_bright = nullptr;
+
+    startEvent(L"DrawScreenQuadEvalBrightness");
+    if (!createRenderTargetTexture(width, height, rtv_bright, srv_bright, samplerState, false))
+        return false;
+
+    BrightnessConstantBuffer cb;
+    ZeroMemory(&cb, sizeof(BrightnessConstantBuffer));
+
+    setViewport(width, height);
+    setRenderTarget(rtv_bright);
+    cb.isBrightnessCalc = 1;
+    brightnessCbuf->update(cb);
+    screenQuadPrim->render(brightShader, samplerState, baseSRV);
+    endEvent();
+    rtv_bright->Release();
+
+    // 2 ^ n
+    auto n = static_cast<int>(std::max<double>(std::ceil(std::log2(width)), std::ceil(std::log(height))));
+    auto two_pow_n = 1 << n;
+    ID3D11ShaderResourceView* curSRV = srv_bright, *prevSRV = baseSRV;
+    ID3D11Texture2D* resTex2D = nullptr;
+
+    cb.isBrightnessCalc = 0;
+    brightnessCbuf->update(cb);
+    for (; n >= 0; n--, two_pow_n >>= 1)
+    {
+        ID3D11RenderTargetView* rtv_2n = nullptr;
+        ID3D11ShaderResourceView* srv_2n = nullptr;
+        bool cpuAccessFlag = n == 0;
+        ID3D11Texture2D* tex_2n = nullptr;
+
+        startEvent((std::wstring(L"DrawScreenQuad2^") + std::to_wstring(n)).c_str());
+        if (!createRenderTargetTexture(two_pow_n, two_pow_n, rtv_2n, srv_2n, samplerState, false, cpuAccessFlag ? &tex_2n : nullptr))
+            return false;
+
+        setViewport(two_pow_n, two_pow_n);
+        setRenderTarget(rtv_2n);
+        screenQuadPrim->render(brightShader, samplerState, curSRV);
+        endEvent();
+
+        if (cpuAccessFlag)
+        {
+            if (!createCPUAccessedTexture(resTex2D, tex_2n))
+                return false;
+            tex_2n->Release();
+        }
+
+        prevSRV = curSRV;
+        curSRV = srv_2n;
+
+        rtv_2n->Release();
+        if (prevSRV != baseSRV)
+            prevSRV->Release();
+    }
+    srv = curSRV;
+    tex = resTex2D;
+    return true;
+}
+
+float Graphics::calcMeanBrightness(ID3D11Texture2D* brightnessPixelTex2D) {
+    D3D11_MAPPED_SUBRESOURCE subrc;
+    auto hr = context->Map(brightnessPixelTex2D, 0, D3D11_MAP_READ, 0, &subrc);
     if (FAILED(hr))
-        return;
+        printf("Failed map resource :(");
 
-    // Set index buffer
-    context->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R32_UINT, 0);
+    float* arr = (float*)subrc.pData;
 
-    // Set primitive topology
-    context->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    // Check it is really tex 1x1 pixel
+    assert(subrc.DepthPitch >= 1);
+    assert(subrc.RowPitch >= 1);
+    assert(fabs(arr[0] - arr[1]) < 1e-6);
+    assert(fabs(arr[1] - arr[2]) < 1e-6);
+    assert(fabs(arr[3] - 1) < 1e-6);
+    context->Unmap(brightnessPixelTex2D, 0);
 
-    // Create the constant buffer
-    bd.Usage = D3D11_USAGE_DEFAULT;
-    bd.ByteWidth = sizeof(ConstantBuffer);
-    bd.BindFlags = D3D11_BIND_CONSTANT_BUFFER;
-    bd.CPUAccessFlags = 0;
-    hr = device->CreateBuffer(&bd, nullptr, &constBuffer);
-    if (FAILED(hr))
-        return;
-
-    // Initialize the world matrix
-    world = XMMatrixIdentity();
-
-    // Initialize the view matrix
-    XMVECTOR Eye = XMVectorSet(0.0f, 0.0f, -5.0f, 0.0f);
-    XMVECTOR At = XMVectorSet(0.0f, 0.0f, 0.0f, 0.0f);
-    XMVECTOR Up = XMVectorSet(0.0f, 1.0f, 0.0f, 0.0f);
-    view = XMMatrixLookAtLH(Eye, At, Up);
-
-    // Initialize the projection matrix
-    projection = XMMatrixPerspectiveFovLH(XM_PIDIV2, 1, 0.001f, 100.0f);
+    return std::exp(arr[0]) - 1.0f;
 }
 
 
 void Graphics::render() {
-    // Just clear the backbuffer
-    float clearColor[] = {0.3f, 0.5f, 0.7f, 1.f};
-    context->ClearRenderTargetView(renderTargetView, clearColor);
+    moveCamera();
 
-    //
-    // Update variables
-    //
-    ConstantBuffer cb;
-    ZeroMemory(&cb, sizeof(ConstantBuffer));
+    ID3D11ShaderResourceView* brightnessPixelSRV = nullptr;
+    ID3D11Texture2D* brightnessPixelTex2D = nullptr;
 
-    auto time = std::chrono::duration_cast<std::chrono::milliseconds>(std::chrono::system_clock::now() - start).count() / 1000.0f;
+    bool brightness_ok = evalMeanBrightnessTex(brightnessPixelSRV, brightnessPixelTex2D);
+    if (!brightness_ok)
+        printf("Failed eval mean brightness :(");
+    auto meanBrightness = calcMeanBrightness(brightnessPixelTex2D);
 
-    world = XMMatrixRotationY(time);
+    const float adaptationTime = 1.5f;
+    float curMeanBrightness;
+    if (std::fabs(prevMeanBrightness + 1) > 1e-6)
+        curMeanBrightness = prevMeanBrightness + (meanBrightness - prevMeanBrightness) * (1 - exp(-deltaTime / adaptationTime));
+    else
+        curMeanBrightness = meanBrightness;
+    prevMeanBrightness = curMeanBrightness;
 
-    cb.mWorld = XMMatrixTranspose(world);
-    cb.mView = XMMatrixTranspose(view);
-    cb.mProjection = XMMatrixTranspose(projection);
-    cb.mTranslation = XMMatrixTranslation(.0f, 0.2f, .0f);
-#ifdef _DEBUG
-    annotation->BeginEvent(L"UpdConstBuffer");
-#endif
-    context->UpdateSubresource(constBuffer, 0, nullptr, &cb, 0, 0);
-#ifdef _DEBUG
-    annotation->EndEvent();
-#endif
+    setViewport(width, height);
+    setRenderTarget(swapChainRTV);
 
-    // Render a triangle
-#ifdef _DEBUG
-    annotation->BeginEvent(L"DrawTriangle");
-#endif
-    context->VSSetShader(vertexShader, nullptr, 0);
-    context->VSSetConstantBuffers(0, 1, &constBuffer);
-    context->PSSetShader(pixelShader, nullptr, 0);
-    context->DrawIndexed(36, 0, 0);
-#ifdef _DEBUG
-    annotation->EndEvent();
-#endif
+    TonemapConstantBuffer cb;
+    ZeroMemory(&cb, sizeof(TonemapConstantBuffer));
+    cb.meanBrightness = curMeanBrightness;
+
+    startEvent(L"DrawScreenQuad");
+    cb.isBrightnessWindow = 0;
+    tonemapCbuf->update(cb);
+    screenQuadPrim->render(tonemapShader, samplerState, baseSRV);
+    endEvent();
+    
+    startEvent(L"DrawBrightQuad");
+    cb.isBrightnessWindow = 1;
+    tonemapCbuf->update(cb);
+    brightQuadPrim->render(tonemapShader, samplerState, brightnessPixelSRV);
+    endEvent();
+
+    if (brightnessPixelSRV)
+        brightnessPixelSRV->Release();
+    if (brightnessPixelTex2D)
+        brightnessPixelTex2D->Release();
 
     swapChain->Present(0, 0);
+
+    // Unbind shader resource
+    ID3D11ShaderResourceView* views[1] = { nullptr };
+    context->PSSetShaderResources(0, 1, views);
 }
 
 void Graphics::cleanup() {
-    if (renderTargetView) renderTargetView->Release();
-    if (vertexShader) vertexShader->Release();
-    if (pixelShader) pixelShader->Release();
-    if (vertexBuffer) vertexBuffer->Release();
-    if (vertexLayout) vertexLayout->Release();
-    if (indexBuffer) indexBuffer->Release();
-    if (constBuffer) constBuffer->Release();
+    if (swapChainRTV) swapChainRTV->Release();
+    if (baseTextureRTV) baseTextureRTV->Release();
+
+    simpleShader->cleanup();
+    brightShader->cleanup();
+    tonemapShader->cleanup();
+
+    simpleCbuf->cleanup();
+    brightnessCbuf->cleanup();
+    tonemapCbuf->cleanup();
+
+    quadPrim->cleanup();
+    screenQuadPrim->cleanup();
+    brightQuadPrim->cleanup();
+
     if (swapChain1) swapChain1->Release();
     if (swapChain) swapChain->Release();
     if (annotation) annotation->Release();
+
+    if (baseSRV) baseSRV->Release();
+    if (samplerState) samplerState->Release();
 
     if (context) context->ClearState();
     if (context1) context1->Release();
@@ -421,37 +637,61 @@ void Graphics::cleanup() {
 }
 
 HRESULT Graphics::resizeBackbuffer(UINT width, UINT height) {
+    
     HRESULT hr;
     ID3D11RenderTargetView* nullViews [] = { nullptr };
 
-    // Initialize the projection matrix
-    projection = XMMatrixPerspectiveFovLH(XM_PIDIV2, width / (FLOAT)height, 0.01f, 100.0f);
+    camera.setAspectRatio(width / (FLOAT)height);
 
     context->OMSetRenderTargets(ARRAYSIZE(nullViews), nullViews, nullptr);
-    renderTargetView->Release();
+
+    if (swapChainRTV) swapChainRTV->Release();
+
+    //if (baseTextureRTV) baseTextureRTV->Release();
     context->Flush();
 
-    hr = swapChain->ResizeBuffers(1, width, height, DXGI_FORMAT_R8G8B8A8_UNORM, 0);
-    if (FAILED(hr)) {
+    hr = swapChain->ResizeBuffers(1, width, height, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, 0);
+    if (FAILED(hr))
         return hr;
-    }
 
     ID3D11Texture2D* backBuffer = nullptr;
     hr = swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&backBuffer));
-    if (FAILED(hr)) {
+    if (FAILED(hr))
         return hr;
-    }
 
-    hr = device->CreateRenderTargetView(backBuffer, nullptr, &renderTargetView);
-    if (FAILED(hr)) {
+    hr = device->CreateRenderTargetView(backBuffer, nullptr, &swapChainRTV);
+    if (FAILED(hr))
         return hr;
-    }
+ 
     backBuffer->Release();
 
-    CD3D11_VIEWPORT viewPort(0.0f, 0.0f, static_cast<float>(width), static_cast<float>(height));
-    context->RSSetViewports(1, &viewPort);
+    setViewport(width, height);
 
-    context->OMSetRenderTargets(1, &renderTargetView, nullptr);
+    this->width = width;
+    this->height = height;
+    
     return S_OK;
 }
 
+void Graphics::setMoveRight(bool move) { moveRight = move; }
+void Graphics::setMoveLeft(bool move) { moveLeft = move; }
+void Graphics::setMoveForward(bool move) { moveForward = move; }
+void Graphics::setMoveBackward(bool move) { moveBackward = move; }
+void Graphics::setMoveUp(bool move) { moveUp = move; }
+void Graphics::setMoveDown(bool move) { moveDown = move; }
+
+void Graphics::rotate(int mouseDeltaX, int mouseDeltaY) {
+    camera.rotate(mouseDeltaX * sensitivity, mouseDeltaY * sensitivity);
+}
+
+void Graphics::resetLightIntensity(int lightIndex) {
+    spotLights[lightIndex].setIntensity(1.0f);
+}
+
+void Graphics::increaseLightIntensity(int lightIndex) {
+    spotLights[lightIndex].setIntensity(min(spotLights[lightIndex].getIntensity() + 10.0f, 10000.0f));
+}
+
+void Graphics::decreaseLightIntensity(int lightIndex) {
+    spotLights[lightIndex].setIntensity(max(spotLights[lightIndex].getIntensity() - 10.0f, 0.0f));
+}

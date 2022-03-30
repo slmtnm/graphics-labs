@@ -1,4 +1,5 @@
 #include <windows.h>
+#include <windowsx.h>
 #include <d3d11_1.h>
 #include <tchar.h>
 #include "window.h"
@@ -25,22 +26,130 @@ LRESULT CALLBACK Window::WndProc(
     _In_ UINT msg,
     _In_ WPARAM wParam,
     _In_ LPARAM lParam) {
-    PAINTSTRUCT ps;
-    HDC hdc;
-
     switch (msg) {
     case WM_CREATE:
         if (!inst->onCreate(hWnd, graphics))
             exit(0);
+        RECT rc;
+        GetWindowRect(hWnd, &rc);
+        SetCursorPos((rc.left + rc.right) / 2, (rc.top + rc.bottom) / 2);
+        ShowCursor(FALSE);
         break;
     case WM_PAINT:
         graphics->render();
         break;
+    case WM_KEYDOWN:
+    {
+        auto vkCode = LOWORD(wParam);
+        switch (vkCode) {
+        case 0x41: // A
+            graphics->setMoveLeft(true);
+            break;
+        case 0x44: // D
+            graphics->setMoveRight(true);
+            break;
+        case 0x53: // S
+            graphics->setMoveBackward(true);
+            break;
+        case 0x57: // W
+            graphics->setMoveForward(true);
+            break;
+        case VK_SPACE:
+            graphics->setMoveUp(true);
+            break;
+        case 0x43: // C
+            graphics->setMoveDown(true);
+            break;
+        case 0x51: // Q
+            PostMessage(hWnd, WM_CLOSE, 0, 0);
+            break;
+        case 0x30: // 0
+            graphics->resetLightIntensity(0);
+            graphics->resetLightIntensity(1);
+            graphics->resetLightIntensity(2);
+            break;
+        case 0x31: // 1
+            graphics->increaseLightIntensity(0);
+            break;
+        case 0x32: // 2
+            graphics->decreaseLightIntensity(0);
+            break;
+        case 0x33: // 1
+            graphics->increaseLightIntensity(1);
+            break;
+        case 0x34: // 2
+            graphics->decreaseLightIntensity(1);
+            break;
+        case 0x35: // 1
+            graphics->increaseLightIntensity(2);
+            break;
+        case 0x36: // 2
+            graphics->decreaseLightIntensity(2);
+            break;
+        case VK_OEM_PLUS: // +
+            graphics->increaseLightIntensity(0);
+            graphics->increaseLightIntensity(1);
+            graphics->increaseLightIntensity(2);
+            break;
+        case VK_OEM_MINUS: // -
+            graphics->decreaseLightIntensity(0);
+            graphics->decreaseLightIntensity(1);
+            graphics->decreaseLightIntensity(2);
+            break;
+        }
+        break;
+    }
+    case WM_KEYUP:
+    {
+        auto vkCode = LOWORD(wParam);
+        switch (vkCode) {
+        case 0x41: // A
+            graphics->setMoveLeft(false);
+            break;
+        case 0x44: // D
+            graphics->setMoveRight(false);
+            break;
+        case 0x53: // S
+            graphics->setMoveBackward(false);
+            break;
+        case 0x57: // W
+            graphics->setMoveForward(false);
+            break;
+        case VK_SPACE:
+            graphics->setMoveUp(false);
+            break;
+        case 0x43: // C
+            graphics->setMoveDown(false);
+            break;
+        }
+        break;
+    }
+    case WM_MOUSEMOVE:
+    {
+        RECT rc;
+        GetClientRect(hWnd, &rc);
+
+        POINT centerClient = { (rc.right + rc.left) / 2, (rc.top + rc.bottom) / 2 };
+		int cursorX = GET_X_LPARAM(lParam); 
+		int cursorY = GET_Y_LPARAM(lParam);
+
+        POINT centerScreen = centerClient;
+        ClientToScreen(hWnd, &centerScreen);
+        SetCursorPos(centerScreen.x, centerScreen.y);
+
+        int dx = centerClient.x -  cursorX;
+        int dy = centerClient.y - cursorY ;
+        if (dx != 0 || dy != 0) {
+            graphics->rotate(dx, dy);
+        }
+        break;
+    }
     case WM_SIZE:
     {
         UINT width = LOWORD(lParam);
         UINT height = HIWORD(lParam);
-        graphics->resizeBackbuffer(width, height);
+        if (FAILED(graphics->resizeBackbuffer(width, height)))
+            MessageBox(nullptr, L"Failed to resize buffer", L"Critical error", MB_OK);
         break;
     }
     case WM_CLOSE:
@@ -124,8 +233,7 @@ int Window::init(_In_ HINSTANCE hInstance,
 std::shared_ptr<Window> Window::window(_In_ HINSTANCE hInstance,
     _In_opt_ HINSTANCE hPrevInstance,
     _In_ LPSTR lpCmdLine,
-    _In_ int nCmdShow)
-{
+    _In_ int nCmdShow) {
     inst->init(hInstance, hPrevInstance, lpCmdLine, nCmdShow);
     return inst;
 }
