@@ -1,6 +1,7 @@
 #pragma once
 
 #include <memory>
+#include <array>
 #include <vector>
 #include <chrono>
 #include <d3d11_1.h>
@@ -8,6 +9,7 @@
 
 #include "camera.h"
 #include "shader.h"
+#include "spotlight.h"
 
 
 using namespace DirectX;
@@ -22,6 +24,8 @@ public:
     static std::shared_ptr<Graphics> init(HWND hWnd);
     static std::shared_ptr<Graphics> get();
 
+    void initShaders();
+    void initLights();
     bool initGeometry();
 
     ID3D11Device* getDevice() const { return device; }
@@ -135,7 +139,7 @@ private:
 
     Camera camera;
 
-    Shader 
+    std::unique_ptr<Shader>
         simpleShader, brightShader, tonemapShader;
     std::unique_ptr<Primitive> quadPrim;
     std::shared_ptr<Primitive> screenQuadPrim, brightQuadPrim;
@@ -143,6 +147,8 @@ private:
     std::unique_ptr<ConstBuffer<SimpleConstantBuffer>> simpleCbuf;
     std::unique_ptr<ConstBuffer<BrightnessConstantBuffer>> brightnessCbuf;
     std::unique_ptr<ConstBuffer<TonemapConstantBuffer>> tonemapCbuf;
+
+    std::array<SpotLight, 3> spotLights;
 
     std::chrono::system_clock::time_point start;
 
@@ -165,9 +171,6 @@ private:
 
     // last frame timestamp
     DWORD lastFrame = timeGetTime();
-
-    // lighting settings
-    float lightIntensity[3] = { 1.0f, 1.0f, 1.0f };
 
     UINT width, height;
 };

@@ -12,9 +12,7 @@ class Primitive
 public:
     void cleanup();
 
-    void render(Shader const& shader,
-        std::vector<std::shared_ptr<AppliedConstBuffer>> const& constBuffers,
-        std::vector<UINT> cbufRegister,
+    void render(std::unique_ptr<Shader> const& shader,
         ID3D11SamplerState* samplerState = nullptr, ID3D11ShaderResourceView* tex = nullptr);
 
 private:

@@ -157,6 +157,7 @@
     <ClCompile Include="main.cpp" />
     <ClCompile Include="primitive.cpp" />
     <ClCompile Include="Shader.cpp" />
+    <ClCompile Include="spotlight.cpp" />
     <ClCompile Include="window.cpp" />
   </ItemGroup>
   <ItemGroup>

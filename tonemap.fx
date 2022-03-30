@@ -39,7 +39,7 @@ static const float W = 11.2; // Linear White Point Value
 float EvalExposure()
 {
     float keyValue =
-        1.03f - 1.0f / (2.0f + log(meanBrightness + 1) / log(10));
+        1.03f - 1.5f / (2.0f + log(meanBrightness + 1) / log(10));
 
     float exposure = keyValue / meanBrightness;
 

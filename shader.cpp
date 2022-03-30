@@ -2,6 +2,7 @@
 
 #include "graphics.h"
 #include "Shader.h"
+#include "const_buffer.h"
 
 
 //--------------------------------------------------------------------------------------
@@ -44,6 +45,7 @@ void Shader::makeShaders(LPCWSTR shaderName, D3D11_INPUT_ELEMENT_DESC* layout, i
     ID3DBlob* pVSBlob = nullptr;
     auto hr = CompileShaderFromFile(shaderName, "VS", "vs_4_0", &pVSBlob);
     if (FAILED(hr)) {
+        status = false;
         MessageBox(nullptr,
             L"The FX file cannot be compiled.  Please run this executable from the directory that contains the FX file.", L"Error", MB_OK);
         return;
@@ -53,6 +55,7 @@ void Shader::makeShaders(LPCWSTR shaderName, D3D11_INPUT_ELEMENT_DESC* layout, i
     auto graphics = Graphics::get();
     hr = graphics->getDevice()->CreateVertexShader(pVSBlob->GetBufferPointer(), pVSBlob->GetBufferSize(), nullptr, &_vertexShader);
     if (FAILED(hr)) {
+        status = false;
         pVSBlob->Release();
         return;
     }
@@ -63,12 +66,16 @@ void Shader::makeShaders(LPCWSTR shaderName, D3D11_INPUT_ELEMENT_DESC* layout, i
         pVSBlob->GetBufferSize(), &_vertexLayout);
 
     if (FAILED(hr))
+    {
+        status = false;
         return;
+    }
 
     // Compile the pixel shader
     ID3DBlob* pPSBlob = nullptr;
     hr = CompileShaderFromFile(shaderName, "PS", "ps_4_0", &pPSBlob);
     if (FAILED(hr)) {
+        status = false;
         MessageBox(nullptr,
             L"The FX file cannot be compiled.  Please run this executable from the directory that contains the FX file.", L"Error", MB_OK);
         return;
@@ -79,7 +86,16 @@ void Shader::makeShaders(LPCWSTR shaderName, D3D11_INPUT_ELEMENT_DESC* layout, i
     pPSBlob->Release();
 
     if (FAILED(hr))
-        return;
+        status = false;
+    else
+        status = true;
+}
+
+std::unique_ptr<Shader> ShaderFactory::makeShaders(
+                LPCWSTR shaderName, D3D11_INPUT_ELEMENT_DESC* layout, int numElementsLayout) {
+    std::unique_ptr<Shader> shader = std::unique_ptr<Shader>(new Shader);
+    shader->makeShaders(shaderName, layout, numElementsLayout);
+    return shader;
 }
 
 ID3D11VertexShader* Shader::vertexShader() const
@@ -97,12 +113,24 @@ ID3D11InputLayout* Shader::vertexLayout() const
     return _vertexLayout;
 }
 
+void Shader::addConstBuffers(std::vector<ConstBufferData> const& constBuffers)
+{
+    this->constBuffers = constBuffers;
+}
+
 void Shader::apply() const
 {
-    auto ctx = Graphics::get()->getContext();
-    ctx->IASetInputLayout(_vertexLayout);
-    ctx->VSSetShader(_vertexShader, nullptr, 0);
-    ctx->PSSetShader(_pixelShader, nullptr, 0);
+    if (status)
+    {
+        auto ctx = Graphics::get()->getContext();
+        ctx->IASetInputLayout(_vertexLayout);
+        ctx->VSSetShader(_vertexShader, nullptr, 0);
+        ctx->PSSetShader(_pixelShader, nullptr, 0);
+
+        for (UINT idx = 0; idx < constBuffers.size(); idx++)
+            constBuffers[idx].constBuffer->apply(idx, constBuffers[idx].bindVS, constBuffers[idx].bindPS);
+
+    }
 }
 
 void Shader::cleanup()

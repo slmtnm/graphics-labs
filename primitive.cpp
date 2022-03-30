@@ -8,16 +8,9 @@ void Primitive::cleanup()
 }
 
 void Primitive::render(
-    Shader const& shader, 
-    std::vector<std::shared_ptr<AppliedConstBuffer>> const& constBuffers,
-    std::vector<UINT> cbufRegister,
-    ID3D11SamplerState* samplerState, ID3D11ShaderResourceView* tex)
+    std::unique_ptr<Shader> const& shader, ID3D11SamplerState* samplerState, ID3D11ShaderResourceView* tex)
 {
-    shader.apply();
-
-    for (size_t idx = 0; idx < constBuffers.size(); idx++)
-        // let all buffers be binded to both VS and PS for now
-        constBuffers[idx]->apply(cbufRegister[idx], true, true);
+    shader->apply();
 
     auto ctx = graphics->getContext();
     ctx->IASetVertexBuffers(0, 1, &vertexBuffer, &stride, &offset);

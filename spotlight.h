@@ -2,15 +2,29 @@
 
 #include <directxmath.h>
 
+using namespace DirectX;
+
 class SpotLight {
+public:
+	SpotLight();
+
+	SpotLight(XMFLOAT3 const& position, XMFLOAT3 const& direction,
+		float cutoffDegree, float intensity);
+
+	void setIntensity(float intensity);
+
+	XMFLOAT4 getPosition() const;
+	XMFLOAT4 getDirection() const;
+	float getCutoff() const;
+	float getIntensity() const;
+
+private:
 	// spotlight's position
-	XMVECTOR position;
-
+	XMFLOAT4 position;
 	// the direction the spotlight is aiming at
-	XMVECTOR direction;
-
+	XMFLOAT4 direction;
 	// angle that specifies the spotlight's radius
 	float cutoff;
-
-	SpotLight(XMVECTOR position, XMVECTOR direction, float cutoff) : position(position), direction(direction), cutoff(cutoff) {}
+	// light intensity
+	float intensity;
 };

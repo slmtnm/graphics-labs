@@ -111,7 +111,7 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
         ZeroMemory(&sd, sizeof(sd));
         sd.Width = width;
         sd.Height = height;
-        sd.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        sd.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
         sd.SampleDesc.Count = 1;
         sd.SampleDesc.Quality = 0;
         sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
@@ -130,7 +130,7 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
         sd.BufferCount = 1;
         sd.BufferDesc.Width = width;
         sd.BufferDesc.Height = height;
-        sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+        sd.BufferDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM_SRGB;
         sd.BufferDesc.RefreshRate.Numerator = 60;
         sd.BufferDesc.RefreshRate.Denominator = 1;
         sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
@@ -149,26 +149,8 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
     if (FAILED(hr))
         return nullptr;
 
-    // Define the input layout
-    D3D11_INPUT_ELEMENT_DESC simpleLayout[] =
-    {
-        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
-        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-    };
-
-    graphics->simpleShader.makeShaders(L"simple.fx", simpleLayout, 3);
-
-    D3D11_INPUT_ELEMENT_DESC brightLayout[] =
-    {
-        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 28, D3D11_INPUT_PER_VERTEX_DATA, 0 }
-    };
-
-    graphics->brightShader.makeShaders(L"brightness.fx", brightLayout, 3);
-    graphics->tonemapShader.makeShaders(L"tonemap.fx", brightLayout, 3);
-
+    graphics->initShaders();
+    
     if (!graphics->createRenderTargetTexture(width, height, inst->baseTextureRTV, inst->baseSRV, inst->samplerState, true))
         return nullptr; 
 
@@ -186,10 +168,54 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
     if (!graphics->initGeometry())
         return nullptr;
 
+    graphics->initLights();
+
     graphics->width = width;
     graphics->height = height;
 
     return graphics;
+}
+
+void Graphics::initShaders()
+{
+    auto graphics = inst; // alias
+
+    // Create constant buffers
+    graphics->simpleCbuf = std::make_unique<ConstBuffer<SimpleConstantBuffer>>();
+    graphics->brightnessCbuf = std::make_unique<ConstBuffer<BrightnessConstantBuffer>>();
+    graphics->tonemapCbuf = std::make_unique<ConstBuffer<TonemapConstantBuffer>>();
+
+    // Define the input layout
+    D3D11_INPUT_ELEMENT_DESC simpleLayout[] =
+    {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+    };
+
+    graphics->simpleShader = ShaderFactory::makeShaders(L"simple.fx", simpleLayout, 3);
+    graphics->simpleShader->addConstBuffers({ { graphics->simpleCbuf->appliedConstBuffer(), true, true } });
+
+    D3D11_INPUT_ELEMENT_DESC brightLayout[] =
+    {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 28, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+    };
+
+    graphics->brightShader = ShaderFactory::makeShaders(L"brightness.fx", brightLayout, 3);
+    graphics->brightShader->addConstBuffers({ { graphics->brightnessCbuf->appliedConstBuffer(), false, true } });
+
+    graphics->tonemapShader = ShaderFactory::makeShaders(L"tonemap.fx", brightLayout, 3);
+    graphics->tonemapShader->addConstBuffers({ { graphics->tonemapCbuf->appliedConstBuffer(), false, true } });
+
+}
+
+void Graphics::initLights()
+{
+    spotLights[0] = SpotLight(XMFLOAT3(-2, 0, 0), XMFLOAT3(0, 0, 1), 15.0f, 1.0f);
+    spotLights[1] = SpotLight(XMFLOAT3(2, 0, 0), XMFLOAT3(0, 0, 1), 15.0f, 1.0f);
+    spotLights[2] = SpotLight(XMFLOAT3(0, 3, 0), XMFLOAT3(0, 0, 1), 15.0f, 1.0f);
 }
 
 std::shared_ptr<Graphics> Graphics::get()
@@ -361,10 +387,6 @@ bool Graphics::initGeometry() {
     success &= createScreenQuad(screenQuadPrim, true);
     success &= createScreenQuad(brightQuadPrim, false, 0.8f);
 
-    simpleCbuf = std::make_unique<ConstBuffer<SimpleConstantBuffer>>();
-    brightnessCbuf = std::make_unique<ConstBuffer<BrightnessConstantBuffer>>();
-    tonemapCbuf = std::make_unique<ConstBuffer<TonemapConstantBuffer>>();
-
     return success;
 }
 
@@ -414,28 +436,16 @@ void Graphics::renderScene() {
     cb.mWorld = XMMatrixIdentity();
 
     // Setup lights
-    cb.LightPos[0] = XMFLOAT4(-2, 0, 0, 1);
-    cb.LightPos[1] = XMFLOAT4(2, 0, 0, 1);
-    cb.LightPos[2] = XMFLOAT4(0, 3, 0, 1);
-    cb.LightPos[3] = XMFLOAT4(0, 5, 0, 1);
-
-    cb.LightDir[0] = XMFLOAT4(0, 0, 1, 1);
-    cb.LightDir[1] = XMFLOAT4(0, 0, 1, 1);
-    cb.LightDir[2] = XMFLOAT4(0, 0, 1, 1);
-    cb.LightDir[3] = XMFLOAT4(0, 0, 1, 1);
-
-    cb.LightCutoff[0] = cosf(XMConvertToRadians(15));
-    cb.LightCutoff[1] = cosf(XMConvertToRadians(15));
-    cb.LightCutoff[2] = cosf(XMConvertToRadians(15));
-    cb.LightCutoff[3] = cosf(XMConvertToRadians(10));
-
-    cb.LightIntensity[0] = lightIntensity[0];
-    cb.LightIntensity[1] = lightIntensity[1];
-    cb.LightIntensity[2] = lightIntensity[2];
+    for (size_t idx = 0; idx < spotLights.size(); idx++) {
+        cb.LightPos[idx] = spotLights[idx].getPosition();
+        cb.LightDir[idx] = spotLights[idx].getDirection();
+        cb.LightCutoff[idx] = spotLights[idx].getCutoff();
+        cb.LightIntensity[idx] = spotLights[idx].getIntensity();
+    }
 
     startEvent(L"DrawQuad1");
     simpleCbuf->update(cb);
-    quadPrim->render(simpleShader, { simpleCbuf->appliedConstBuffer() }, {0});
+    quadPrim->render(simpleShader);
     endEvent();
 }
 
@@ -468,7 +478,7 @@ bool Graphics::evalMeanBrightnessTex(ID3D11ShaderResourceView*&srv, ID3D11Textur
     setRenderTarget(rtv_bright);
     cb.isBrightnessCalc = 1;
     brightnessCbuf->update(cb);
-    screenQuadPrim->render(brightShader, { brightnessCbuf->appliedConstBuffer() }, { 0 }, samplerState, baseSRV);
+    screenQuadPrim->render(brightShader, samplerState, baseSRV);
     endEvent();
     rtv_bright->Release();
 
@@ -493,7 +503,7 @@ bool Graphics::evalMeanBrightnessTex(ID3D11ShaderResourceView*&srv, ID3D11Textur
 
         setViewport(two_pow_n, two_pow_n);
         setRenderTarget(rtv_2n);
-        screenQuadPrim->render(brightShader, { brightnessCbuf->appliedConstBuffer() }, { 0 }, samplerState, curSRV);
+        screenQuadPrim->render(brightShader, samplerState, curSRV);
         endEvent();
 
         if (cpuAccessFlag)
@@ -564,13 +574,13 @@ void Graphics::render() {
     startEvent(L"DrawScreenQuad");
     cb.isBrightnessWindow = 0;
     tonemapCbuf->update(cb);
-    screenQuadPrim->render(tonemapShader, { tonemapCbuf->appliedConstBuffer() }, { 0 }, samplerState, baseSRV);
+    screenQuadPrim->render(tonemapShader, samplerState, baseSRV);
     endEvent();
     
     startEvent(L"DrawBrightQuad");
     cb.isBrightnessWindow = 1;
     tonemapCbuf->update(cb);
-    brightQuadPrim->render(tonemapShader, { tonemapCbuf->appliedConstBuffer() }, { 0 }, samplerState, brightnessPixelSRV);
+    brightQuadPrim->render(tonemapShader, samplerState, brightnessPixelSRV);
     endEvent();
 
     if (brightnessPixelSRV)
@@ -589,9 +599,9 @@ void Graphics::cleanup() {
     if (swapChainRTV) swapChainRTV->Release();
     if (baseTextureRTV) baseTextureRTV->Release();
 
-    simpleShader.cleanup();
-    brightShader.cleanup();
-    tonemapShader.cleanup();
+    simpleShader->cleanup();
+    brightShader->cleanup();
+    tonemapShader->cleanup();
 
     simpleCbuf->cleanup();
     brightnessCbuf->cleanup();
@@ -640,7 +650,7 @@ HRESULT Graphics::resizeBackbuffer(UINT width, UINT height) {
     //if (baseTextureRTV) baseTextureRTV->Release();
     context->Flush();
 
-    hr = swapChain->ResizeBuffers(1, width, height, DXGI_FORMAT_R8G8B8A8_UNORM, 0);
+    hr = swapChain->ResizeBuffers(1, width, height, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, 0);
     if (FAILED(hr))
         return hr;
 
@@ -675,13 +685,13 @@ void Graphics::rotate(int mouseDeltaX, int mouseDeltaY) {
 }
 
 void Graphics::resetLightIntensity(int lightIndex) {
-    lightIntensity[lightIndex] = 1.0f;
+    spotLights[lightIndex].setIntensity(1.0f);
 }
 
 void Graphics::increaseLightIntensity(int lightIndex) {
-    lightIntensity[lightIndex] = min(lightIntensity[lightIndex] + 10.0f, 10000.0f);
+    spotLights[lightIndex].setIntensity(min(spotLights[lightIndex].getIntensity() + 10.0f, 10000.0f));
 }
 
 void Graphics::decreaseLightIntensity(int lightIndex) {
-    lightIntensity[lightIndex] = max(lightIntensity[lightIndex] - 10.0f, 0.0f);
+    spotLights[lightIndex].setIntensity(max(spotLights[lightIndex].getIntensity() - 10.0f, 0.0f));
 }

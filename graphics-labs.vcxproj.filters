@@ -46,6 +46,9 @@
     <ClCompile Include="const_buffer.cpp">
       <Filter>Graphics\Const buffer</Filter>
     </ClCompile>
+    <ClCompile Include="spotlight.cpp">
+      <Filter>Graphics\Light</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="camera.h">
