@@ -17,7 +17,7 @@ void Primitive::render(
     ctx->IASetIndexBuffer(indexBuffer, DXGI_FORMAT_R32_UINT, 0);
 
     // Set primitive topology
-    ctx->IASetPrimitiveTopology(D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
+    ctx->IASetPrimitiveTopology(topology);
     if (tex && samplerState)
     {
         // Set the sampler state in the pixel shader.

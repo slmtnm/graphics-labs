@@ -75,6 +75,7 @@ private:
 
     bool createQuad();
     bool createScreenQuad(std::shared_ptr<Primitive> &prim, bool full, float val = 0.0f);
+    bool createSphere(float R);
 
     static std::shared_ptr<Graphics> inst;
 
@@ -121,7 +122,6 @@ private:
         XMFLOAT4 LightDir[4];
         float LightCutoff[4];
         float LightIntensity[4]; // only first component is used
-        int _dummy[12];
     };
 
     struct TonemapConstantBuffer
@@ -141,7 +141,7 @@ private:
 
     std::unique_ptr<Shader>
         simpleShader, brightShader, tonemapShader;
-    std::unique_ptr<Primitive> quadPrim;
+    std::unique_ptr<Primitive> quadPrim, spherePrim;
     std::shared_ptr<Primitive> screenQuadPrim, brightQuadPrim;
 
     std::unique_ptr<ConstBuffer<SimpleConstantBuffer>> simpleCbuf;

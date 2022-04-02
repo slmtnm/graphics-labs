@@ -17,10 +17,13 @@ public:
 
 private:
     template<typename VertexType>
-    bool create(VertexType* vertices, UINT vCount, UINT* indices, UINT iCount)
+    bool create(
+        VertexType const* vertices, UINT vCount, 
+        UINT const* indices, UINT iCount, D3D11_PRIMITIVE_TOPOLOGY topology)
     {
         graphics = Graphics::get();
         this->iCount = iCount;
+        this->topology = topology;
 
         // Init vertex buffer
         D3D11_BUFFER_DESC bd;
@@ -67,6 +70,7 @@ private:
     std::shared_ptr<Graphics> graphics;
     UINT stride;
     UINT offset;
+    D3D11_PRIMITIVE_TOPOLOGY topology;
 
 
     friend class PrimitiveFactory;
@@ -76,11 +80,21 @@ private:
 class PrimitiveFactory
 {
 public:
+    template<typename VertexType, UINT VNum, UINT INum>
+    static std::unique_ptr<Primitive> create(
+        std::array<VertexType, VNum> const &vertices, std::array<UINT, INum> const& indices,
+        D3D11_PRIMITIVE_TOPOLOGY topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST)
+    {
+        return create(vertices.data(), VNum, indices.data(), INum, topology);
+    }
+
     template<typename VertexType>
-    static std::unique_ptr<Primitive> create(VertexType* vertices, UINT vCount, UINT* indices, UINT iCount)
+    static std::unique_ptr<Primitive> create(
+        VertexType const* vertices, UINT vCount, UINT const* indices, UINT iCount,
+        D3D11_PRIMITIVE_TOPOLOGY topology = D3D11_PRIMITIVE_TOPOLOGY_TRIANGLELIST)
     {
         auto pr = std::unique_ptr<Primitive>(new Primitive);
-        if (!pr->create(vertices, vCount, indices, iCount))
+        if (!pr->create(vertices, vCount, indices, iCount, topology))
             return nullptr;
         return pr;
     }
