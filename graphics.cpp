@@ -416,8 +416,8 @@ bool Graphics::createSphere(float R)
     {
         for (int j = 0; j < N; j++)
         {
-            indices[i * (N * 2 + 1) + 2 * j] = (i + 1) * N + j;
-            indices[i * (N * 2 + 1) + 2 * j + 1] = i * N + j;
+            indices[i * (N * 2 + 1) + 2 * j + 1] = (i + 1) * N + (N - 1 - j);
+            indices[i * (N * 2 + 1) + 2 * j] = i * N + (N - 1 - j);
         }
         indices[(i + 1) * (N * 2 + 1) - 1] = -1;
     }
