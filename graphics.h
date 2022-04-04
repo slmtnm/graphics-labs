@@ -65,7 +65,8 @@ private:
 
     bool createRenderTargetTexture(UINT width, UINT height, 
         ID3D11RenderTargetView*& rtv, ID3D11ShaderResourceView*& srv,
-        ID3D11SamplerState*& samplerState, bool createSamplerState = false,
+        ID3D11SamplerState*& samplerState, 
+        DXGI_FORMAT format, bool createSamplerState = false,
         ID3D11Texture2D **tex = nullptr);
 
     bool createCPUAccessedTexture(ID3D11Texture2D*& dst, ID3D11Texture2D* src);
@@ -141,7 +142,7 @@ private:
 
     std::unique_ptr<Shader>
         simpleShader, brightShader, tonemapShader;
-    std::unique_ptr<Primitive> quadPrim, spherePrim;
+    std::unique_ptr<Primitive> /*quadPrim, */ spherePrim;
     std::shared_ptr<Primitive> screenQuadPrim, brightQuadPrim;
 
     std::unique_ptr<ConstBuffer<SimpleConstantBuffer>> simpleCbuf;

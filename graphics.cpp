@@ -151,7 +151,8 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
 
     graphics->initShaders();
     
-    if (!graphics->createRenderTargetTexture(width, height, inst->baseTextureRTV, inst->baseSRV, inst->samplerState, true))
+    if (!graphics->createRenderTargetTexture(
+        width, height, inst->baseTextureRTV, inst->baseSRV, inst->samplerState, DXGI_FORMAT_R32G32B32A32_FLOAT, true))
         return nullptr; 
 
     // Create a render target view
@@ -240,7 +241,8 @@ void Graphics::setViewport(UINT width, UINT height)
 bool Graphics::createRenderTargetTexture(
     UINT width, UINT height, ID3D11RenderTargetView*& rtv,
     ID3D11ShaderResourceView*& srv, 
-    ID3D11SamplerState*& samplerState, bool createSamplerState,
+    ID3D11SamplerState*& samplerState, 
+    DXGI_FORMAT format, bool createSamplerState,
     ID3D11Texture2D** tex)
 {
     // Setup render target texture
@@ -250,7 +252,7 @@ bool Graphics::createRenderTargetTexture(
     td.Height = height;
     td.MipLevels = 1;
     td.ArraySize = 1;
-    td.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+    td.Format = format;
     td.SampleDesc.Count = 1;
     td.SampleDesc.Quality = 0;
     td.Usage = D3D11_USAGE_DEFAULT;
@@ -350,9 +352,9 @@ bool Graphics::createQuad()
         2, 0, 3
     };
 
-    quadPrim = PrimitiveFactory::create<SimpleVertex>(vertices, 4, indices, 6);
+    /*quadPrim = PrimitiveFactory::create<SimpleVertex>(vertices, 4, indices, 6);
     if (!quadPrim)
-        return false;
+        return false;*/
     return true;
 }
 
@@ -431,8 +433,8 @@ bool Graphics::createSphere(float R)
 
 bool Graphics::initGeometry() {
     bool success = true;
-    success &= createQuad();
-    success &= createSphere(1.0f);
+    //success &= createQuad();
+    success &= createSphere(3.0f);
     success &= createScreenQuad(screenQuadPrim, true);
     success &= createScreenQuad(brightQuadPrim, false, 0.8f);
 
@@ -494,7 +496,7 @@ void Graphics::renderScene() {
 
     startEvent(L"DrawQuad1");
     simpleCbuf->update(cb);
-    quadPrim->render(simpleShader);
+    //quadPrim->render(simpleShader);
 
     cb.mWorld = XMMatrixTranspose(XMMatrixTranslation(0.0f, 0.0f, 10.0f));
     simpleCbuf->update(cb);
@@ -521,7 +523,9 @@ bool Graphics::evalMeanBrightnessTex(ID3D11ShaderResourceView*&srv, ID3D11Textur
     ID3D11Texture2D* tex_bright = nullptr;
 
     startEvent(L"DrawScreenQuadEvalBrightness");
-    if (!createRenderTargetTexture(width, height, rtv_bright, srv_bright, samplerState, false))
+    if (!createRenderTargetTexture(
+        width, height, rtv_bright, srv_bright, 
+        samplerState, DXGI_FORMAT_R32_FLOAT, false))
         return false;
 
     BrightnessConstantBuffer cb;
@@ -551,7 +555,9 @@ bool Graphics::evalMeanBrightnessTex(ID3D11ShaderResourceView*&srv, ID3D11Textur
         ID3D11Texture2D* tex_2n = nullptr;
 
         startEvent((std::wstring(L"DrawScreenQuad2^") + std::to_wstring(n)).c_str());
-        if (!createRenderTargetTexture(two_pow_n, two_pow_n, rtv_2n, srv_2n, samplerState, false, cpuAccessFlag ? &tex_2n : nullptr))
+        if (!createRenderTargetTexture(
+            two_pow_n, two_pow_n, rtv_2n, srv_2n, samplerState, 
+            DXGI_FORMAT_R32_FLOAT, false, cpuAccessFlag ? &tex_2n : nullptr))
             return false;
 
         setViewport(two_pow_n, two_pow_n);
@@ -660,7 +666,7 @@ void Graphics::cleanup() {
     brightnessCbuf->cleanup();
     tonemapCbuf->cleanup();
 
-    quadPrim->cleanup();
+    //quadPrim->cleanup();
     spherePrim->cleanup();
     screenQuadPrim->cleanup();
     brightQuadPrim->cleanup();
