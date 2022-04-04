@@ -170,6 +170,8 @@ private:
     // mouse sensitivity
     const float sensitivity = 0.1f;
 
+    const float radius = 2.0f;
+
     // last frame timestamp
     DWORD lastFrame = timeGetTime();
 

@@ -434,7 +434,7 @@ bool Graphics::createSphere(float R)
 bool Graphics::initGeometry() {
     bool success = true;
     //success &= createQuad();
-    success &= createSphere(3.0f);
+    success &= createSphere(radius);
     success &= createScreenQuad(screenQuadPrim, true);
     success &= createScreenQuad(brightQuadPrim, false, 0.8f);
 
@@ -494,13 +494,19 @@ void Graphics::renderScene() {
         cb.LightIntensity[idx] = spotLights[idx].getIntensity();
     }
 
-    startEvent(L"DrawQuad1");
+    startEvent(L"DrawSphereGrid");
     simpleCbuf->update(cb);
     //quadPrim->render(simpleShader);
 
-    cb.mWorld = XMMatrixTranspose(XMMatrixTranslation(0.0f, 0.0f, 10.0f));
-    simpleCbuf->update(cb);
-    spherePrim->render(simpleShader);
+    const int GridSize = 8;
+
+    for (int y = -GridSize / 2; y < GridSize / 2; y++)
+        for (int x = -GridSize / 2; x < GridSize / 2; x++)
+        {
+            cb.mWorld = XMMatrixTranspose(XMMatrixTranslation(3 * x * radius, 3 * y * radius, 50.0f));
+            simpleCbuf->update(cb);
+            spherePrim->render(simpleShader);
+        }
     endEvent();
 }
 
