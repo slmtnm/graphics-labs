@@ -125,6 +125,13 @@ private:
         float LightIntensity[4]; // only first component is used
     };
 
+    struct MaterialConstantBuffer
+    {
+        XMFLOAT3 F0;
+        float alpha;
+        float metalness;
+    };
+
     struct TonemapConstantBuffer
     {
         int isBrightnessWindow;
@@ -141,7 +148,7 @@ private:
     Camera camera;
 
     std::unique_ptr<Shader>
-        simpleShader, brightShader, tonemapShader;
+        simpleShader, pbrShader, brightShader, tonemapShader;
     std::unique_ptr<Primitive> /*quadPrim, */ spherePrim;
     std::shared_ptr<Primitive> screenQuadPrim, brightQuadPrim;
 
