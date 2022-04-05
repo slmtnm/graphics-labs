@@ -182,7 +182,9 @@ void Graphics::initShaders()
     auto graphics = inst; // alias
 
     // Create constant buffers
-    graphics->simpleCbuf = std::make_unique<ConstBuffer<SimpleConstantBuffer>>();
+    //graphics->simpleCbuf = std::make_unique<ConstBuffer<SimpleConstantBuffer>>();
+    graphics->pbrCbuf = std::make_unique<ConstBuffer<PBRConstantBuffer>>();
+    graphics->materialCbuf = std::make_unique<ConstBuffer<MaterialConstantBuffer>>();
     graphics->brightnessCbuf = std::make_unique<ConstBuffer<BrightnessConstantBuffer>>();
     graphics->tonemapCbuf = std::make_unique<ConstBuffer<TonemapConstantBuffer>>();
 
@@ -194,8 +196,15 @@ void Graphics::initShaders()
         { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
     };
 
-    graphics->simpleShader = ShaderFactory::makeShaders(L"simple.fx", simpleLayout, 3);
-    graphics->simpleShader->addConstBuffers({ { graphics->simpleCbuf->appliedConstBuffer(), true, true } });
+    /*graphics->simpleShader = ShaderFactory::makeShaders(L"simple.fx", simpleLayout, 3);
+    graphics->simpleShader->addConstBuffers({ { graphics->simpleCbuf->appliedConstBuffer(), true, true } });*/
+
+    graphics->pbrShader = ShaderFactory::makeShaders(L"pbr.fx", simpleLayout, 3);
+    graphics->pbrShader->addConstBuffers(
+        { 
+            { graphics->pbrCbuf->appliedConstBuffer(), true, true },
+            { graphics->materialCbuf->appliedConstBuffer(), false, true }
+        });
 
     D3D11_INPUT_ELEMENT_DESC brightLayout[] =
     {
@@ -214,9 +223,9 @@ void Graphics::initShaders()
 
 void Graphics::initLights()
 {
-    spotLights[0] = SpotLight(XMFLOAT3(-2, 0, 0), XMFLOAT3(0, 0, 1), 15.0f, 1.0f);
-    spotLights[1] = SpotLight(XMFLOAT3(2, 0, 0), XMFLOAT3(0, 0, 1), 15.0f, 1.0f);
-    spotLights[2] = SpotLight(XMFLOAT3(0, 3, 0), XMFLOAT3(0, 0, 1), 15.0f, 1.0f);
+    spotLights[0] = SpotLight(XMFLOAT3(-2, 0, 0), XMFLOAT3(0, 0, 1), XMFLOAT3(1, 0, 0), 15.0f, 1.0f);
+    spotLights[1] = SpotLight(XMFLOAT3(2, 0, 0), XMFLOAT3(0, 0, 1), XMFLOAT3(1, 0, 0), 15.0f, 1.0f);
+    spotLights[2] = SpotLight(XMFLOAT3(0, 3, 0), XMFLOAT3(0, 0, 1), XMFLOAT3(1, 0, 0), 15.0f, 1.0f);
 }
 
 std::shared_ptr<Graphics> Graphics::get()
@@ -479,23 +488,34 @@ void Graphics::endEvent()
 }
 
 void Graphics::renderScene() {
-    // Render quad
-    SimpleConstantBuffer cb;
-    ZeroMemory(&cb, sizeof(SimpleConstantBuffer));
-    cb.mView = XMMatrixTranspose(camera.view());
-    cb.mProjection = XMMatrixTranspose(camera.projection());
-    cb.mWorld = XMMatrixIdentity();
+    // Render sphere grid
+    PBRConstantBuffer pbrCB;
+    ZeroMemory(&pbrCB, sizeof(PBRConstantBuffer));
+    pbrCB.View = XMMatrixTranspose(camera.view());
+    pbrCB.Projection = XMMatrixTranspose(camera.projection());
+    pbrCB.World = XMMatrixIdentity();
 
     // Setup lights
     for (size_t idx = 0; idx < spotLights.size(); idx++) {
-        cb.LightPos[idx] = spotLights[idx].getPosition();
-        cb.LightDir[idx] = spotLights[idx].getDirection();
-        cb.LightCutoff[idx] = spotLights[idx].getCutoff();
-        cb.LightIntensity[idx] = spotLights[idx].getIntensity();
+        pbrCB.LightPos[idx] = spotLights[idx].getPosition();
+        pbrCB.LightDir[idx] = spotLights[idx].getDirection();
+        pbrCB.LightColor[idx] = spotLights[idx].getColor();
+        pbrCB.LightCutoff[idx] = spotLights[idx].getCutoff();
+        pbrCB.LightIntensity[idx] = spotLights[idx].getIntensity();
     }
+    auto pos = camera.getPosition().m128_f32;
+    pbrCB.CameraPos = XMFLOAT3(pos[0], pos[1], pos[2]);
+
+    // TODO update material in loop
+    MaterialConstantBuffer mtlCB;
+    ZeroMemory(&mtlCB, sizeof(MaterialConstantBuffer));
+    mtlCB.roughness = 0.5f;
+    mtlCB.metalness = 0.1f;
+    mtlCB.F0 = XMFLOAT3(0.04f, 0.04f, 0.04f);
 
     startEvent(L"DrawSphereGrid");
-    simpleCbuf->update(cb);
+    pbrCbuf->update(pbrCB);
+    materialCbuf->update(mtlCB);
     //quadPrim->render(simpleShader);
 
     const int GridSize = 8;
@@ -503,9 +523,9 @@ void Graphics::renderScene() {
     for (int y = -GridSize / 2; y < GridSize / 2; y++)
         for (int x = -GridSize / 2; x < GridSize / 2; x++)
         {
-            cb.mWorld = XMMatrixTranspose(XMMatrixTranslation(3 * x * radius, 3 * y * radius, 50.0f));
-            simpleCbuf->update(cb);
-            spherePrim->render(simpleShader);
+            pbrCB.World = XMMatrixTranspose(XMMatrixTranslation(3 * x * radius, 3 * y * radius, 50.0f));
+            pbrCbuf->update(pbrCB);
+            spherePrim->render(pbrShader);
         }
     endEvent();
 }
@@ -664,11 +684,11 @@ void Graphics::cleanup() {
     if (swapChainRTV) swapChainRTV->Release();
     if (baseTextureRTV) baseTextureRTV->Release();
 
-    simpleShader->cleanup();
+    //simpleShader->cleanup();
     brightShader->cleanup();
     tonemapShader->cleanup();
 
-    simpleCbuf->cleanup();
+    //simpleCbuf->cleanup();
     brightnessCbuf->cleanup();
     tonemapCbuf->cleanup();
 

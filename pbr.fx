@@ -1,7 +1,7 @@
 //--------------------------------------------------------------------------------------
 // Constant Buffer Variables
 //--------------------------------------------------------------------------------------
-cbuffer SimpleConstantBuffer : register(b0)
+cbuffer PBRConstantBuffer : register(b0)
 {
     matrix World;
     matrix View;
@@ -19,7 +19,7 @@ cbuffer SimpleConstantBuffer : register(b0)
 cbuffer MaterialConstantBuffer : register(b1)
 {
     float3 F0;
-    float alpha;
+    float roughness;
     float metalness;
 }
 
@@ -79,13 +79,13 @@ float pow5(float x)
 //--------------------------------------------------------------------------------------
 float D(float3 n, float3 h)
 {
-    float Dval = pow2(alpha) / (PI * pow2(pow2(n * h) * (pow2(alpha) - 1) + 1))
+    float Dval = pow2(roughness) / (PI * pow2(pow2(n * h) * (pow2(roughness) - 1) + 1))
     return Dval;
 }
 
 float Gv(float3 n, float3 vec)
 {
-    float k = (alpha + 1) * (alpha + 1) / 8;
+    float k = (roughness + 1) * (roughness + 1) / 8;
     float nv = n * vec;
     float Gval = nv / (nv * (1 - k) + k);
     return Gval;

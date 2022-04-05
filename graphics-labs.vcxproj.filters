@@ -83,5 +83,8 @@
     <FxCompile Include="tonemap.fx">
       <Filter>Shader</Filter>
     </FxCompile>
+    <FxCompile Include="pbr.fx">
+      <Filter>Shader</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

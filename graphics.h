@@ -125,10 +125,25 @@ private:
         float LightIntensity[4]; // only first component is used
     };
 
+    struct PBRConstantBuffer
+    {
+        XMMATRIX World;
+        XMMATRIX View;
+        XMMATRIX Projection;
+        // lights
+        XMFLOAT4 LightColor[4];
+        XMFLOAT4 LightPos[4];
+        XMFLOAT4 LightDir[4];
+        float LightCutoff[4];
+        float LightIntensity[4];
+        // camera
+        XMFLOAT3 CameraPos;
+    };
+
     struct MaterialConstantBuffer
     {
         XMFLOAT3 F0;
-        float alpha;
+        float roughness;
         float metalness;
     };
 
@@ -148,11 +163,13 @@ private:
     Camera camera;
 
     std::unique_ptr<Shader>
-        simpleShader, pbrShader, brightShader, tonemapShader;
+        /*simpleShader, */ pbrShader, brightShader, tonemapShader;
     std::unique_ptr<Primitive> /*quadPrim, */ spherePrim;
     std::shared_ptr<Primitive> screenQuadPrim, brightQuadPrim;
 
-    std::unique_ptr<ConstBuffer<SimpleConstantBuffer>> simpleCbuf;
+    //std::unique_ptr<ConstBuffer<SimpleConstantBuffer>> simpleCbuf;
+    std::unique_ptr<ConstBuffer<PBRConstantBuffer>> pbrCbuf;
+    std::unique_ptr<ConstBuffer<MaterialConstantBuffer>> materialCbuf;
     std::unique_ptr<ConstBuffer<BrightnessConstantBuffer>> brightnessCbuf;
     std::unique_ptr<ConstBuffer<TonemapConstantBuffer>> tonemapCbuf;
 

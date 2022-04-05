@@ -30,11 +30,13 @@ class Camera {
 public:
 	Camera();
 
-	XMMATRIX view();
-	XMMATRIX projection();
+	XMMATRIX view() const;
+	XMMATRIX projection() const;
 
-	XMVECTOR getRight();
-	XMVECTOR getDirection();
+	XMVECTOR getRight() const;
+	XMVECTOR getDirection() const;
+
+	XMVECTOR getPosition() const;
 
 	void setAspectRatio(const float aspectRatio);
 	void move(XMVECTOR delta);
