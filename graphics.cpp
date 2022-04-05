@@ -685,10 +685,13 @@ void Graphics::cleanup() {
     if (baseTextureRTV) baseTextureRTV->Release();
 
     //simpleShader->cleanup();
+    pbrShader->cleanup();
     brightShader->cleanup();
     tonemapShader->cleanup();
 
     //simpleCbuf->cleanup();
+    pbrCbuf->cleanup();
+    materialCbuf->cleanup();
     brightnessCbuf->cleanup();
     tonemapCbuf->cleanup();
 

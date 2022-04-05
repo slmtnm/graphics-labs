@@ -24,7 +24,7 @@ cbuffer MaterialConstantBuffer : register(b1)
 }
 
 
-const float PI = 3.14159f;
+static const float PI = 3.14159f;
 
 //--------------------------------------------------------------------------------------
 // Vertex Shader's input and output vertex format
@@ -79,14 +79,14 @@ float pow5(float x)
 //--------------------------------------------------------------------------------------
 float D(float3 n, float3 h)
 {
-    float Dval = pow2(roughness) / (PI * pow2(pow2(n * h) * (pow2(roughness) - 1) + 1))
+    float Dval = pow2(roughness) / (PI * pow2(pow2(dot(n, h)) * (pow2(roughness) - 1) + 1));
     return Dval;
 }
 
 float Gv(float3 n, float3 vec)
 {
     float k = (roughness + 1) * (roughness + 1) / 8;
-    float nv = n * vec;
+    float nv = dot(n, vec);
     float Gval = nv / (nv * (1 - k) + k);
     return Gval;
 }
@@ -99,14 +99,14 @@ float G(float3 n, float3 v, float3 l)
 float3 F(float3 h, float3 v)
 {
     float3 F0met = float3(0.04f, 0.04f, 0.04f) * (1 - metalness) + F0 * metalness;
-    float3 Fval = F0met + (float3(1.0f, 1.0f, 1.0f) - F0met) * pow5(1 - h * v);
+    float3 Fval = F0met + (float3(1.0f, 1.0f, 1.0f) - F0met) * pow5(1 - dot(h, v));
     return Fval;
 }
 
 float fr(float3 albedo, float3 lightDir, float3 camDir, float3 n)
 {
     float3 wi = lightDir; // alias
-    float3 wo = 2 * n * (wi * n) - wi;
+    float3 wo = 2 * n * dot(wi, n) - wi;
     float3 l = lightDir; // alias
     float3 v = camDir; // alias
     float3 h = normalize((v + l) * 0.5f);
@@ -117,7 +117,7 @@ float fr(float3 albedo, float3 lightDir, float3 camDir, float3 n)
 
     float3 frval =
         Fval * albedo / PI * (1 - metalness) +
-        Dval * Fval * Gval / (4 * (wi * n) * (wo * n));
+        Dval * Fval * Gval / (4 * dot(wi, n) * dot(wo, n));
     return frval;
 }
 
@@ -135,10 +135,10 @@ float4 PS(VS_OUTPUT input) : SV_Target
         // normal
         float3 n = normalize(input.Norm);
         // result color
-        float3 color = fr(input.Color, lightDir, camDir, n) * lightColor * (lightDir * n);
+        float3 color = fr(input.Color, lightDir, camDir, n) * lightColor * dot(lightDir, n);
 
         resultColor += color;
     }
 
-    return resultColor;
+    return float4(resultColor, input.Color.a);
 }

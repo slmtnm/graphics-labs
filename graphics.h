@@ -145,6 +145,7 @@ private:
         XMFLOAT3 F0;
         float roughness;
         float metalness;
+        float _dummy[3];
     };
 
     struct TonemapConstantBuffer

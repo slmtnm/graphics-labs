@@ -20,8 +20,11 @@ public:
 
     void update(ConstBufferType const& cb)
     {
-        auto graphics = Graphics::get();
-        graphics->getContext()->UpdateSubresource(constBuffer, 0, nullptr, &cb, 0, 0);
+        if (status)
+        {
+            auto graphics = Graphics::get();
+            graphics->getContext()->UpdateSubresource(constBuffer, 0, nullptr, &cb, 0, 0);
+        }
     }
 
     void cleanup()
