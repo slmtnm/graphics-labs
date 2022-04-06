@@ -511,7 +511,7 @@ void Graphics::renderScene() {
     ZeroMemory(&mtlCB, sizeof(MaterialConstantBuffer));
     mtlCB.roughness = 0.5f;
     mtlCB.metalness = 0.1f;
-    mtlCB.F0 = XMFLOAT3(0.04f, 0.04f, 0.04f);
+    mtlCB.F0 = XMFLOAT3(0.95f, 0.64f, 0.54f);
 
     startEvent(L"DrawSphereGrid");
     pbrCbuf->update(pbrCB);

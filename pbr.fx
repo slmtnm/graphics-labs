@@ -39,9 +39,8 @@ struct VS_INPUT
 struct VS_OUTPUT
 {
     float4 Pos : SV_POSITION;
-    float3 Norm : TEXCOORD0;
-    float3 WorldPos: TEXCOORD1;
-    float3 WorldCamPos : TEXCOORD2;
+    float3 Norm : NORMAL0;
+    float3 WorldPos: POSITION0;
     float4 Color : COLOR0;
 };
 
@@ -55,9 +54,8 @@ VS_OUTPUT VS(VS_INPUT input)
     output.Pos = mul(output.Pos, View);
     output.Pos = mul(output.Pos, Projection);
     output.Color = input.Color;
-    output.Norm = input.Norm;
-    output.WorldPos = mul(float4(input.Pos, 1.0f), World);
-    output.WorldCamPos = mul(float4(CameraPos, 1.0f), World);
+    output.Norm = mul(input.Norm, (float3x3)World);
+    output.WorldPos = mul(float4(input.Pos, 1.0f), World).xyz;
 
     return output;
 }
@@ -103,12 +101,9 @@ float3 F(float3 h, float3 v)
     return Fval;
 }
 
-float fr(float3 albedo, float3 lightDir, float3 camDir, float3 n)
+float fr(float3 albedo, float3 n, float3 v, float3 l, float3 wi)
 {
-    float3 wi = lightDir; // alias
-    float3 wo = 2 * n * dot(wi, n) - wi;
-    float3 l = lightDir; // alias
-    float3 v = camDir; // alias
+    float3 wo = wi - 2 * n * dot(wi, n);
     float3 h = normalize((v + l) * 0.5f);
 
     float3 Fval = F(h, v);
@@ -124,18 +119,20 @@ float fr(float3 albedo, float3 lightDir, float3 camDir, float3 n)
 float4 PS(VS_OUTPUT input) : SV_Target
 {
     float3 resultColor = float3(0.0f, 0.0f, 0.0f);
+    // direction from point to camera
+    float3 v = normalize(CameraPos - input.WorldPos);
+    // normal
+    float3 n = normalize(input.Norm);
 
-    for (uint i = 0; i < 3; i++) {
+    for (uint i = 0; i < 1; i++) {
         // direction from point to light
-        float3 lightDir = normalize(LightPos[i].xyz - input.WorldPos.xyz);
-        // direction from point to camera
-        float3 camDir = normalize(input.WorldCamPos.xyz - input.WorldPos.xyz);
+        float3 l = normalize(LightPos[i].xyz - input.WorldPos);
         // light color
         float3 lightColor = LightColor[i] * LightIntensity[i];
-        // normal
-        float3 n = normalize(input.Norm);
+        // alias
+        float3 wi = -LightDir[i];
         // result color
-        float3 color = fr(input.Color, lightDir, camDir, n) * lightColor * dot(lightDir, n);
+        float3 color = fr(input.Color, n, v, l, wi) * lightColor * max(0, dot(wi, n));
 
         resultColor += color;
     }
