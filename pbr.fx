@@ -84,8 +84,8 @@ float D(float3 n, float3 h)
 float Gv(float3 n, float3 vec)
 {
     float k = pow2(roughness + 1) / 8;
-    float nv = -dot(n, vec);
-    float Gval = nv / (nv * (1 - k) + k);
+    float nv = dot(n, vec);
+    float Gval = nv / (nv + (1 - nv) * k);
     return Gval;
 }
 
@@ -112,7 +112,7 @@ float fr(float3 albedo, float3 n, float3 v, float3 l, float3 wi)
 
     float3 frval =
         Fval * albedo / PI * (1 - metalness) +
-        Dval * Fval /*Gval*/ / (4 * dot(-wi, n) * dot(wo, n));
+        Dval * Fval /* Gval */ / (4 * dot(-wi, n) * dot(wo, n));
     return frval;
 }
 

@@ -190,7 +190,7 @@ private:
     bool moveDown = false;
 
     // movement speed
-    const float moveSpeed = 5.0f;
+    const float moveSpeed = 15.0f;
     
     // mouse sensitivity
     const float sensitivity = 0.1f;

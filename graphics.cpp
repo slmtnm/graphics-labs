@@ -418,7 +418,7 @@ bool Graphics::createSphere(float R)
             vertices[idx].Pos.z = z * R;
 
             vertices[idx].Norm = XMFLOAT3(x, y, z);
-            vertices[idx].Color = XMFLOAT4(1, 0, 0, 1);
+            vertices[idx].Color = XMFLOAT4(1.0f, 0, 0, 1.0f);
         }
     }
 
@@ -524,7 +524,7 @@ void Graphics::renderScene() {
         for (int x = -GridSize / 2; x < GridSize / 2; x++)
         {
             mtlCB.metalness = 0.01f + (x + GridSize / 2) * (1 - 0.01f) / (GridSize - 1);
-            pbrCB.World = XMMatrixTranspose(XMMatrixTranslation(3 * x * radius, 3 * y * radius, 50.0f));
+            pbrCB.World = XMMatrixTranspose(XMMatrixTranslation(3 * x * radius, 3 * y * radius, 30.0f));
             
             pbrCbuf->update(pbrCB);
             materialCbuf->update(mtlCB);
