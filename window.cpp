@@ -74,16 +74,16 @@ LRESULT CALLBACK Window::WndProc(
         case 0x32: // 2
             graphics->decreaseLightIntensity(0);
             break;
-        case 0x33: // 1
+        case 0x33: // 3
             graphics->increaseLightIntensity(1);
             break;
-        case 0x34: // 2
+        case 0x34: // 4
             graphics->decreaseLightIntensity(1);
             break;
-        case 0x35: // 1
+        case 0x35: // 5
             graphics->increaseLightIntensity(2);
             break;
-        case 0x36: // 2
+        case 0x36: // 6
             graphics->decreaseLightIntensity(2);
             break;
         case VK_OEM_PLUS: // +

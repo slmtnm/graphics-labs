@@ -514,19 +514,24 @@ void Graphics::renderScene() {
     mtlCB.F0 = XMFLOAT3(0.95f, 0.64f, 0.54f);
 
     startEvent(L"DrawSphereGrid");
-    pbrCbuf->update(pbrCB);
-    materialCbuf->update(mtlCB);
     //quadPrim->render(simpleShader);
 
     const int GridSize = 8;
 
-    for (int y = -GridSize / 2; y < GridSize / 2; y++)
+    for (int y = -GridSize / 2, roughness = 0.01; y < GridSize / 2; y++)
+    {
+        mtlCB.roughness = 0.01f + (y + GridSize / 2) * (1 - 0.01f) / (GridSize - 1);
         for (int x = -GridSize / 2; x < GridSize / 2; x++)
         {
+            mtlCB.metalness = 0.01f + (x + GridSize / 2) * (1 - 0.01f) / (GridSize - 1);
             pbrCB.World = XMMatrixTranspose(XMMatrixTranslation(3 * x * radius, 3 * y * radius, 50.0f));
+            
             pbrCbuf->update(pbrCB);
+            materialCbuf->update(mtlCB);
+
             spherePrim->render(pbrShader);
         }
+    }
     endEvent();
 }
 

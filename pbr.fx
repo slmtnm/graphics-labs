@@ -83,8 +83,8 @@ float D(float3 n, float3 h)
 
 float Gv(float3 n, float3 vec)
 {
-    float k = (roughness + 1) * (roughness + 1) / 8;
-    float nv = dot(n, vec);
+    float k = pow2(roughness + 1) / 8;
+    float nv = -dot(n, vec);
     float Gval = nv / (nv * (1 - k) + k);
     return Gval;
 }
@@ -112,7 +112,7 @@ float fr(float3 albedo, float3 n, float3 v, float3 l, float3 wi)
 
     float3 frval =
         Fval * albedo / PI * (1 - metalness) +
-        Dval * Fval * Gval / (4 * dot(wi, n) * dot(wo, n));
+        Dval * Fval /*Gval*/ / (4 * dot(-wi, n) * dot(wo, n));
     return frval;
 }
 
@@ -124,13 +124,13 @@ float4 PS(VS_OUTPUT input) : SV_Target
     // normal
     float3 n = normalize(input.Norm);
 
-    for (uint i = 0; i < 1; i++) {
+    for (uint i = 0; i < 3; i++) {
         // direction from point to light
         float3 l = normalize(LightPos[i].xyz - input.WorldPos);
         // light color
         float3 lightColor = LightColor[i] * LightIntensity[i];
         // alias
-        float3 wi = -LightDir[i];
+        float3 wi = LightDir[i];
         // result color
         float3 color = fr(input.Color, n, v, l, wi) * lightColor * max(0, dot(wi, n));
 
