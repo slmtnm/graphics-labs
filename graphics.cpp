@@ -518,10 +518,12 @@ void Graphics::renderScene() {
 
     const int GridSize = 8;
 
-    for (int y = -GridSize / 2, roughness = 0.01; y < GridSize / 2; y++)
+    //for (int y = -GridSize / 2, roughness = 0.01; y < GridSize / 2; y++)
+    int y = 0;
     {
         mtlCB.roughness = 0.01f + (y + GridSize / 2) * (1 - 0.01f) / (GridSize - 1);
-        for (int x = -GridSize / 2; x < GridSize / 2; x++)
+        //for (int x = -GridSize / 2; x < GridSize / 2; x++)
+        int x = 0;
         {
             mtlCB.metalness = 0.01f + (x + GridSize / 2) * (1 - 0.01f) / (GridSize - 1);
             pbrCB.World = XMMatrixTranspose(XMMatrixTranslation(3 * x * radius, 3 * y * radius, 30.0f));

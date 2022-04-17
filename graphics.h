@@ -138,6 +138,7 @@ private:
         float LightIntensity[4];
         // camera
         XMFLOAT3 CameraPos;
+        float _dummy;
     };
 
     struct MaterialConstantBuffer
@@ -152,13 +153,13 @@ private:
     {
         int isBrightnessWindow;
         float meanBrightness;
-        int _dummy[14];
+        float _dummy[2];
     };
 
     struct BrightnessConstantBuffer
     {
         int isBrightnessCalc;
-        int _dummy[15];
+        float _dummy[3];
     };
 
     Camera camera;

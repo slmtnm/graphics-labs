@@ -4,7 +4,6 @@ SamplerState samLinear : register(s0);
 cbuffer BrightnessConstantBuffer : register(b0)
 {
     int isBrightnessCalc;
-    int _dummy[15];
 }
 
 //--------------------------------------------------------------------------------------

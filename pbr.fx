@@ -40,7 +40,7 @@ struct VS_OUTPUT
 {
     float4 Pos : SV_POSITION;
     float3 Norm : NORMAL0;
-    float3 WorldPos: POSITION0;
+    float3 WorldPos: POSITION1;
     float4 Color : COLOR0;
 };
 
@@ -54,7 +54,7 @@ VS_OUTPUT VS(VS_INPUT input)
     output.Pos = mul(output.Pos, View);
     output.Pos = mul(output.Pos, Projection);
     output.Color = input.Color;
-    output.Norm = mul(input.Norm, (float3x3)World);
+    output.Norm = input.Norm; // mul(input.Norm, transpose((float3x3)(World))); // normalize(mul(float4(input.Norm, 1.0f), transpose(World)).xyz);
     output.WorldPos = mul(float4(input.Pos, 1.0f), World).xyz;
 
     return output;
@@ -85,7 +85,7 @@ float Gv(float3 n, float3 vec)
 {
     float k = pow2(roughness + 1) / 8;
     float nv = dot(n, vec);
-    float Gval = nv / (nv + (1 - nv) * k);
+    float Gval = nv / (nv * (1 - k) + k);
     return Gval;
 }
 
@@ -105,13 +105,13 @@ float fr(float3 albedo, float3 n, float3 v, float3 l)
 {
     float3 h = normalize((v + l) * 0.5f);
 
-    float3 Fval = F(h, v);
+    float3 Fval = F(h, l); //h, v
     float3 Dval = D(n, h);
-    float3 Gval = G(n, v, l);
+    float3 Gval = G(n, l, l); //n, v, l
 
     float3 frval =
-        Fval * albedo / PI * (1 - metalness) +
-        Dval * Fval * Gval / (4 *  dot(v, n));
+        (1 - Fval) * albedo / PI * (1 - metalness) +
+        Dval * Fval * Gval / (4 * dot(l, n) * dot(l, n)); // v
     return frval;
 }
 
@@ -127,9 +127,9 @@ float4 PS(VS_OUTPUT input) : SV_Target
         // direction from point to light
         float3 l = normalize(LightPos[i].xyz - input.WorldPos);
         // light color
-        float3 lightColor = LightColor[i] * LightIntensity[i];
+        float3 lightColor = LightColor[i]; // *LightIntensity[i];
         // result color
-        float3 color = fr(input.Color, n, v, l) * lightColor * max(0, dot(-l, n));
+        float3 color = /*fr(input.Color, n, v, l) */ lightColor * dot(l, n);
 
         resultColor += color;
     }

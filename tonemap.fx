@@ -5,7 +5,6 @@ cbuffer TonemapConstantBuffer : register(b0)
 {
     int isBrightnessWindow;
     float meanBrightness;
-    int _dummy[14];
 }
 
 
