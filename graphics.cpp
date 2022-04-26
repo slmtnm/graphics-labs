@@ -166,6 +166,9 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
     if (FAILED(hr))
         return nullptr;
 
+    if (!graphics->createDepthStencil(width, height))
+        return nullptr;
+
     if (!graphics->initGeometry())
         return nullptr;
 
@@ -175,6 +178,84 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
     graphics->height = height;
 
     return graphics;
+}
+
+bool Graphics::createDepthStencil(UINT width, UINT height)
+{
+    ID3D11Texture2D* pDepthStencil = nullptr;
+    ID3D11DepthStencilState* dsState = nullptr;
+
+    D3D11_TEXTURE2D_DESC descDepth;
+
+    ZeroMemory(&descDepth, sizeof(D3D11_TEXTURE2D_DESC));
+    descDepth.Width = width;
+    descDepth.Height = height;
+    descDepth.MipLevels = 1;
+    descDepth.ArraySize = 1;
+
+    descDepth.SampleDesc.Count = 1;
+    descDepth.SampleDesc.Quality = 0;
+    descDepth.Usage = D3D11_USAGE_DEFAULT;
+    descDepth.BindFlags = D3D11_BIND_DEPTH_STENCIL;
+    descDepth.CPUAccessFlags = 0;
+    descDepth.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+    descDepth.MiscFlags = 0;
+    auto hr = inst->device->CreateTexture2D(&descDepth, nullptr, &pDepthStencil);
+
+    if (FAILED(hr))
+        return false;
+
+    D3D11_DEPTH_STENCIL_DESC dsDesc;
+
+    ZeroMemory(&dsDesc, sizeof(D3D11_DEPTH_STENCIL_DESC));
+    // Depth test parameters
+    dsDesc.DepthEnable = true;
+    dsDesc.DepthWriteMask = D3D11_DEPTH_WRITE_MASK_ALL;
+    dsDesc.DepthFunc = D3D11_COMPARISON_LESS;
+
+    // Stencil test parameters
+    dsDesc.StencilEnable = true;
+    dsDesc.StencilReadMask = 0xFF;
+    dsDesc.StencilWriteMask = 0xFF;
+
+    // Stencil operations if pixel is front-facing
+    dsDesc.FrontFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+    dsDesc.FrontFace.StencilDepthFailOp = D3D11_STENCIL_OP_INCR;
+    dsDesc.FrontFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
+    dsDesc.FrontFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+
+    // Stencil operations if pixel is back-facing
+    dsDesc.BackFace.StencilFailOp = D3D11_STENCIL_OP_KEEP;
+    dsDesc.BackFace.StencilDepthFailOp = D3D11_STENCIL_OP_DECR;
+    dsDesc.BackFace.StencilPassOp = D3D11_STENCIL_OP_KEEP;
+    dsDesc.BackFace.StencilFunc = D3D11_COMPARISON_ALWAYS;
+
+    // Create depth stencil state
+    hr = inst->device->CreateDepthStencilState(&dsDesc, &dsState);
+
+    if (FAILED(hr))
+        return false;
+
+    // Bind depth stencil state
+    inst->context->OMSetDepthStencilState(dsState, 1);
+
+    D3D11_DEPTH_STENCIL_VIEW_DESC descDSV;
+    ZeroMemory(&descDSV, sizeof(D3D11_DEPTH_STENCIL_VIEW_DESC));
+
+    descDSV.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+    descDSV.ViewDimension = D3D11_DSV_DIMENSION_TEXTURE2D;
+    descDSV.Texture2D.MipSlice = 0;
+    descDepth.Format = DXGI_FORMAT_D24_UNORM_S8_UINT;
+
+    // Create the depth stencil view
+    hr = inst->device->CreateDepthStencilView(pDepthStencil, // Depth stencil texture
+        &descDSV, // Depth stencil desc
+        &inst->dsv);  // [out] Depth stencil view
+
+    dsState->Release();
+    pDepthStencil->Release();
+
+    return SUCCEEDED(hr);
 }
 
 void Graphics::initShaders()
@@ -402,7 +483,7 @@ bool Graphics::createSphere(float R)
     // vertices
     for (int idx = 0, i = 0; i < N; i++)
     {
-        float theta = i * PI / (N - 1);
+        float theta = PI - i * PI / (N - 1); // TODO PI - -> empty
 
         for (int j = 0; j < M; idx++, j++)
         {
@@ -518,12 +599,10 @@ void Graphics::renderScene() {
 
     const int GridSize = 8;
 
-    //for (int y = -GridSize / 2, roughness = 0.01; y < GridSize / 2; y++)
-    int y = 0;
+    for (int y = -GridSize / 2, roughness = 0.01; y < GridSize / 2; y++)
     {
         mtlCB.roughness = 0.01f + (y + GridSize / 2) * (1 - 0.01f) / (GridSize - 1);
-        //for (int x = -GridSize / 2; x < GridSize / 2; x++)
-        int x = 0;
+        for (int x = -GridSize / 2; x < GridSize / 2; x++)
         {
             mtlCB.metalness = 0.01f + (x + GridSize / 2) * (1 - 0.01f) / (GridSize - 1);
             pbrCB.World = XMMatrixTranspose(XMMatrixTranslation(3 * x * radius, 3 * y * radius, 30.0f));
@@ -537,11 +616,12 @@ void Graphics::renderScene() {
     endEvent();
 }
 
-void Graphics::setRenderTarget(ID3D11RenderTargetView* rtv)
+void Graphics::setRenderTarget(ID3D11RenderTargetView* rtv, bool useDSV)
 {
     float clearColor[] = { 0.3f, 0.5f, 0.7f, 1.0f };
     context->ClearRenderTargetView(rtv, clearColor);
-    context->OMSetRenderTargets(1, &rtv, nullptr);
+    context->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+    context->OMSetRenderTargets(1, &rtv, useDSV ? inst->dsv : nullptr);
 }
 
 bool Graphics::evalMeanBrightnessTex(ID3D11ShaderResourceView*&srv, ID3D11Texture2D*& tex)
@@ -594,7 +674,7 @@ bool Graphics::evalMeanBrightnessTex(ID3D11ShaderResourceView*&srv, ID3D11Textur
             return false;
 
         setViewport(two_pow_n, two_pow_n);
-        setRenderTarget(rtv_2n);
+        setRenderTarget(rtv_2n, false);
         screenQuadPrim->render(brightShader, samplerState, curSRV);
         endEvent();
 
@@ -706,6 +786,8 @@ void Graphics::cleanup() {
     spherePrim->cleanup();
     screenQuadPrim->cleanup();
     brightQuadPrim->cleanup();
+
+    if (dsv) dsv->Release();
 
     if (swapChain1) swapChain1->Release();
     if (swapChain) swapChain->Release();

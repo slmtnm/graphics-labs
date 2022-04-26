@@ -15,6 +15,7 @@
 using namespace DirectX;
 
 class Primitive;
+
 template<typename T>
 class ConstBuffer;
 
@@ -63,6 +64,8 @@ private:
     bool evalMeanBrightnessTex(ID3D11ShaderResourceView*& srv, ID3D11Texture2D*& tex);
     float calcMeanBrightness(ID3D11Texture2D* brightnessPixelTex2D);
 
+    bool createDepthStencil(UINT width, UINT height);
+
     bool createRenderTargetTexture(UINT width, UINT height, 
         ID3D11RenderTargetView*& rtv, ID3D11ShaderResourceView*& srv,
         ID3D11SamplerState*& samplerState, 
@@ -72,7 +75,7 @@ private:
     bool createCPUAccessedTexture(ID3D11Texture2D*& dst, ID3D11Texture2D* src);
 
     void setViewport(UINT width, UINT height);
-    void setRenderTarget(ID3D11RenderTargetView* rtv);
+    void setRenderTarget(ID3D11RenderTargetView* rtv, bool useDSV = true);
 
     bool createQuad();
     bool createScreenQuad(std::shared_ptr<Primitive> &prim, bool full, float val = 0.0f);
@@ -91,6 +94,7 @@ private:
     ID3D11DeviceContext1* context1 = nullptr;
     IDXGISwapChain* swapChain = nullptr;
     IDXGISwapChain1* swapChain1 = nullptr;
+    ID3D11DepthStencilView* dsv = nullptr;
 
     ID3D11RenderTargetView* swapChainRTV = nullptr;
     ID3D11RenderTargetView* baseTextureRTV = nullptr;

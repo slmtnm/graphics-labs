@@ -39,10 +39,16 @@ struct VS_INPUT
 struct VS_OUTPUT
 {
     float4 Pos : SV_POSITION;
-    float3 Norm : POSITION1;
-    float3 WorldPos: POSITION2;
+    float3 Norm : NORMAL;
+    float3 WorldPos: POSITION1;
     float4 Color : COLOR;
 };
+
+float3 NN(float3 vec)
+{
+    float normVec = sqrt(dot(vec, vec));
+    return vec / normVec;
+}
 
 //--------------------------------------------------------------------------------------
 // Vertex Shader
@@ -54,7 +60,7 @@ VS_OUTPUT VS(VS_INPUT input)
     output.Pos = mul(output.Pos, View);
     output.Pos = mul(output.Pos, Projection);
     output.Color = input.Color;
-    output.Norm = input.Norm; // normalize(mul(input.Norm, transpose((float3x3)(World)))); // normalize(mul(float4(input.Norm, 1.0f), transpose(World)).xyz);
+    output.Norm = normalize(mul(input.Norm, transpose((float3x3)(World))));
     output.WorldPos = mul(float4(input.Pos, 1.0f), World).xyz;
 
     return output;
@@ -75,6 +81,7 @@ float pow5(float x)
 //--------------------------------------------------------------------------------------
 // Pixel Shader
 //--------------------------------------------------------------------------------------
+
 float D(float3 n, float3 h)
 {
     float Dval = pow2(roughness) / (PI * pow2(pow2(dot(n, h)) * (pow2(roughness) - 1) + 1));
@@ -105,15 +112,16 @@ float fr(float3 albedo, float3 n, float3 v, float3 l)
 {
     float3 h = normalize((v + l) * 0.5f);
 
-    float3 Fval = F(h, l); //h, v
+    float3 Fval = F(h, v); //h, v
     float3 Dval = D(n, h);
-    float3 Gval = G(n, l, l); //n, v, l
+    float3 Gval = G(n, v, l); //n, v, l
 
     float3 frval =
         (1 - Fval) * albedo / PI * (1 - metalness) +
-        Dval * Fval * Gval / (4 * dot(l, n) * dot(l, n)); // v
+        Dval * Fval * Gval / (4 * dot(l, n) * dot(v, n)); // v
     return frval;
 }
+
 
 float4 PS(VS_OUTPUT input) : SV_Target
 {
@@ -123,13 +131,13 @@ float4 PS(VS_OUTPUT input) : SV_Target
     // normal
     float3 n = normalize(input.Norm);
 
-    for (uint i = 0; i < 1; i++) {
+    for (uint i = 0; i < 3; i++) {
         // direction from point to light
         float3 l = normalize(LightPos[i].xyz - input.WorldPos);
         // light color
-        float3 lightColor = LightColor[i]; // *LightIntensity[i];
+        float3 lightColor = LightColor[i] *LightIntensity[i];
         // result color
-        float3 color = /*fr(input.Color, n, v, l) */ lightColor * max(0, dot(-l, n));
+        float3 color = /*fr(input.Color, n, v, l) */ lightColor * max(0, dot(l, n));
 
         resultColor += color;
     }
