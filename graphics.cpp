@@ -650,9 +650,9 @@ void Graphics::render() {
 
     const float adaptationTime = 1.5f;
     float curMeanBrightness;
-    if (std::fabs(prevMeanBrightness + 1) > 1e-6)
+    /*if (std::fabs(prevMeanBrightness + 1) > 1e-6)
         curMeanBrightness = prevMeanBrightness + (meanBrightness - prevMeanBrightness) * (1 - exp(-deltaTime / adaptationTime));
-    else
+    else*/
         curMeanBrightness = meanBrightness;
     prevMeanBrightness = curMeanBrightness;
 

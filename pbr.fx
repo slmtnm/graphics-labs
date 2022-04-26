@@ -33,15 +33,15 @@ struct VS_INPUT
 {
     float3 Pos : POSITION;
     float3 Norm : NORMAL;
-    float4 Color : COLOR0;
+    float4 Color : COLOR;
 };
 
 struct VS_OUTPUT
 {
     float4 Pos : SV_POSITION;
-    float3 Norm : NORMAL0;
-    float3 WorldPos: POSITION1;
-    float4 Color : COLOR0;
+    float3 Norm : POSITION1;
+    float3 WorldPos: POSITION2;
+    float4 Color : COLOR;
 };
 
 //--------------------------------------------------------------------------------------
@@ -54,7 +54,7 @@ VS_OUTPUT VS(VS_INPUT input)
     output.Pos = mul(output.Pos, View);
     output.Pos = mul(output.Pos, Projection);
     output.Color = input.Color;
-    output.Norm = input.Norm; // mul(input.Norm, transpose((float3x3)(World))); // normalize(mul(float4(input.Norm, 1.0f), transpose(World)).xyz);
+    output.Norm = input.Norm; // normalize(mul(input.Norm, transpose((float3x3)(World)))); // normalize(mul(float4(input.Norm, 1.0f), transpose(World)).xyz);
     output.WorldPos = mul(float4(input.Pos, 1.0f), World).xyz;
 
     return output;
@@ -123,13 +123,13 @@ float4 PS(VS_OUTPUT input) : SV_Target
     // normal
     float3 n = normalize(input.Norm);
 
-    for (uint i = 0; i < 3; i++) {
+    for (uint i = 0; i < 1; i++) {
         // direction from point to light
         float3 l = normalize(LightPos[i].xyz - input.WorldPos);
         // light color
         float3 lightColor = LightColor[i]; // *LightIntensity[i];
         // result color
-        float3 color = /*fr(input.Color, n, v, l) */ lightColor * dot(l, n);
+        float3 color = /*fr(input.Color, n, v, l) */ lightColor * max(0, dot(-l, n));
 
         resultColor += color;
     }
