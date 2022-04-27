@@ -135,9 +135,9 @@ float4 PS(VS_OUTPUT input) : SV_Target
         // direction from point to light
         float3 l = normalize(LightPos[i].xyz - input.WorldPos);
         // light color
-        float3 lightColor = LightColor[i] *LightIntensity[i];
+        float3 lightColor = LightColor[i] * LightIntensity[i];
         // result color
-        float3 color = /*fr(input.Color, n, v, l) */ lightColor * max(0, dot(l, n));
+        float3 color = fr(input.Color, n, v, l) * lightColor * max(0, dot(l, n));
 
         resultColor += color;
     }

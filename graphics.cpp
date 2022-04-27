@@ -483,7 +483,7 @@ bool Graphics::createSphere(float R)
     // vertices
     for (int idx = 0, i = 0; i < N; i++)
     {
-        float theta = PI - i * PI / (N - 1); // TODO PI - -> empty
+        float theta = i * PI / (N - 1);
 
         for (int j = 0; j < M; idx++, j++)
         {
@@ -508,8 +508,8 @@ bool Graphics::createSphere(float R)
     {
         for (int j = 0; j < N; j++)
         {
-            indices[i * (N * 2 + 1) + 2 * j + 1] = (i + 1) * N + (N - 1 - j);
-            indices[i * (N * 2 + 1) + 2 * j] = i * N + (N - 1 - j);
+            indices[i * (N * 2 + 1) + 2 * j + 1] = (i + 1) * N + j;
+            indices[i * (N * 2 + 1) + 2 * j] = i * N + j;
         }
         indices[(i + 1) * (N * 2 + 1) - 1] = -1;
     }
