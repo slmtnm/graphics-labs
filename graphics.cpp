@@ -572,6 +572,7 @@ void Graphics::renderScene() {
     // Render sphere grid
     PBRConstantBuffer pbrCB;
     ZeroMemory(&pbrCB, sizeof(PBRConstantBuffer));
+    pbrCB.DrawMask = 3;
     pbrCB.View = XMMatrixTranspose(camera.view());
     pbrCB.Projection = XMMatrixTranspose(camera.projection());
     pbrCB.World = XMMatrixIdentity();
@@ -579,9 +580,7 @@ void Graphics::renderScene() {
     // Setup lights
     for (size_t idx = 0; idx < spotLights.size(); idx++) {
         pbrCB.LightPos[idx] = spotLights[idx].getPosition();
-        pbrCB.LightDir[idx] = spotLights[idx].getDirection();
         pbrCB.LightColor[idx] = spotLights[idx].getColor();
-        pbrCB.LightCutoff[idx] = spotLights[idx].getCutoff();
         pbrCB.LightIntensity[idx] = spotLights[idx].getIntensity();
     }
     auto pos = camera.getPosition().m128_f32;
@@ -601,10 +600,10 @@ void Graphics::renderScene() {
 
     for (int y = -GridSize / 2, roughness = 0.01; y < GridSize / 2; y++)
     {
-        mtlCB.roughness = 0.01f + (y + GridSize / 2) * (1 - 0.01f) / (GridSize - 1);
+        mtlCB.metalness = 0.01f + (y + GridSize / 2) * (1 - 0.01f) / (GridSize - 1);
         for (int x = -GridSize / 2; x < GridSize / 2; x++)
         {
-            mtlCB.metalness = 0.01f + (x + GridSize / 2) * (1 - 0.01f) / (GridSize - 1);
+            mtlCB.roughness = 0.01f + (x + GridSize / 2) * (1 - 0.01f) / (GridSize - 1);
             pbrCB.World = XMMatrixTranspose(XMMatrixTranslation(3 * x * radius, 3 * y * radius, 30.0f));
             
             pbrCbuf->update(pbrCB);
@@ -730,9 +729,9 @@ void Graphics::render() {
 
     const float adaptationTime = 1.5f;
     float curMeanBrightness;
-    /*if (std::fabs(prevMeanBrightness + 1) > 1e-6)
+    if (std::fabs(prevMeanBrightness + 1) > 1e-6)
         curMeanBrightness = prevMeanBrightness + (meanBrightness - prevMeanBrightness) * (1 - exp(-deltaTime / adaptationTime));
-    else*/
+    else
         curMeanBrightness = meanBrightness;
     prevMeanBrightness = curMeanBrightness;
 
@@ -759,6 +758,12 @@ void Graphics::render() {
         brightnessPixelSRV->Release();
     if (brightnessPixelTex2D)
         brightnessPixelTex2D->Release();
+
+    /*
+    setViewport(width, height);
+    setRenderTarget(swapChainRTV);
+    renderScene();
+    */
 
     swapChain->Present(0, 0);
 

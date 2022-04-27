@@ -1,6 +1,6 @@
 #include "camera.h"
 
-Camera::Camera() : position({ 0.f, 0.f, -5.f, 0.f }), direction({ 0.f, 0.f, 1.f, 0.f }) {
+Camera::Camera() : position({ 0.f, 0.f, -50.f, 0.f }), direction({ 0.f, 0.f, 1.f, 0.f }) {
     updateViewMatrix();
     updateProjectionMatrix();
 }

@@ -9,12 +9,20 @@ cbuffer PBRConstantBuffer : register(b0)
     // lights
     float4 LightColor[4];
     float4 LightPos[4];
-    float4 LightDir[4];
-    float4 LightCutoff;
     float4 LightIntensity;
     // camera
     float3 CameraPos;
+    // draw mask
+    int DrawMask;
 }
+
+/*
+ * drawMask:
+ * 0 -- Full PBR
+ * 1 -- D
+ * 2 -- G
+ * 3 -- F
+ */
 
 cbuffer MaterialConstantBuffer : register(b1)
 {
@@ -91,7 +99,7 @@ float D(float3 n, float3 h)
 float Gv(float3 n, float3 vec)
 {
     float k = pow2(roughness + 1) / 8;
-    float nv = dot(n, vec);
+    float nv = max(0, dot(n, vec));
     float Gval = nv / (nv * (1 - k) + k);
     return Gval;
 }
@@ -108,17 +116,25 @@ float3 F(float3 h, float3 v)
     return Fval;
 }
 
-float fr(float3 albedo, float3 n, float3 v, float3 l)
+float3 fr(float3 albedo, float3 n, float3 v, float3 l)
 {
     float3 h = normalize((v + l) * 0.5f);
 
-    float3 Fval = F(h, v); //h, v
+    float3 Fval = F(h, v);
     float3 Dval = D(n, h);
-    float3 Gval = G(n, v, l); //n, v, l
+    float3 Gval = G(n, v, l);
 
     float3 frval =
         (1 - Fval) * albedo / PI * (1 - metalness) +
-        Dval * Fval * Gval / (4 * dot(l, n) * dot(v, n)); // v
+        Dval * Fval * Gval / (4 * dot(l, n) * dot(v, n));
+
+    if (DrawMask == 1)
+        return Dval;
+    if (DrawMask == 2)
+        return Fval;
+    if (DrawMask == 3)
+        return Gval;
+
     return frval;
 }
 
@@ -135,9 +151,11 @@ float4 PS(VS_OUTPUT input) : SV_Target
         // direction from point to light
         float3 l = normalize(LightPos[i].xyz - input.WorldPos);
         // light color
-        float3 lightColor = LightColor[i] * LightIntensity[i];
+        float4 lightColor = LightColor[i] * LightIntensity[i];
         // result color
-        float3 color = fr(input.Color, n, v, l) * lightColor * max(0, dot(l, n));
+        float3 color = fr(input.Color.rgb, n, v, l) * lightColor.rgb; // * max(0, dot(l, n));
+        if (DrawMask == 0)
+            color *= max(0, dot(l, n));
 
         resultColor += color;
     }

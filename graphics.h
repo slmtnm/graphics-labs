@@ -137,12 +137,10 @@ private:
         // lights
         XMFLOAT4 LightColor[4];
         XMFLOAT4 LightPos[4];
-        XMFLOAT4 LightDir[4];
-        float LightCutoff[4];
         float LightIntensity[4];
         // camera
         XMFLOAT3 CameraPos;
-        float _dummy;
+        int DrawMask;
     };
 
     struct MaterialConstantBuffer
