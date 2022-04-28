@@ -126,17 +126,20 @@ LRESULT CALLBACK Window::WndProc(
         }
         break;
     }
+    case WM_RBUTTONDOWN:
+        inst->cursorX = GET_X_LPARAM(lParam);
+        inst->cursorY = GET_Y_LPARAM(lParam);
+        break;
     case WM_MOUSEMOVE:
     {
         if (inst == nullptr)
             break;
 
+        if (!(wParam & MK_RBUTTON))
+            break;
+
         RECT rc;
         GetClientRect(hWnd, &rc);
-
-        //POINT centerScreen = centerClient;
-        //ClientToScreen(hWnd, &centerScreen);
-        //SetCursorPos(centerScreen.x, centerScreen.y);
 
         int newCursorX = GET_X_LPARAM(lParam);
         int newCursorY = GET_Y_LPARAM(lParam);
