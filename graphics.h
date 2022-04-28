@@ -61,6 +61,7 @@ private:
 
     void moveCamera();
     void renderScene();
+    void renderGUI();
 
     bool evalMeanBrightnessTex(ID3D11ShaderResourceView*& srv, ID3D11Texture2D*& tex);
     float calcMeanBrightness(ID3D11Texture2D* brightnessPixelTex2D);

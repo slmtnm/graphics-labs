@@ -2,8 +2,12 @@
 #include <windowsx.h>
 #include <d3d11_1.h>
 #include <tchar.h>
+#include "imgui_impl_win32.h"
 #include "window.h"
 #include "graphics.h"
+
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
 
 std::shared_ptr<Window> Window::inst(new Window);
 std::shared_ptr<Graphics> Window::graphics;
@@ -26,6 +30,10 @@ LRESULT CALLBACK Window::WndProc(
     _In_ UINT msg,
     _In_ WPARAM wParam,
     _In_ LPARAM lParam) {
+
+    if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
+        return true;
+
     switch (msg) {
     case WM_CREATE:
         if (!inst->onCreate(hWnd, graphics))
