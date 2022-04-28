@@ -28,6 +28,7 @@ public:
     void initShaders();
     void initLights();
     bool initGeometry();
+    void initGUI(HWND hWnd);
 
     ID3D11Device* getDevice() const { return device; }
     ID3D11DeviceContext* getContext() const { return context; }

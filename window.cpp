@@ -5,7 +5,7 @@
 #include "window.h"
 #include "graphics.h"
 
-std::shared_ptr<Window> Window::inst;
+std::shared_ptr<Window> Window::inst(new Window);
 std::shared_ptr<Graphics> Window::graphics;
 
 bool Window::onCreate(HWND hWnd, std::shared_ptr<Graphics>& graphics) {
@@ -32,8 +32,10 @@ LRESULT CALLBACK Window::WndProc(
             exit(0);
         RECT rc;
         GetWindowRect(hWnd, &rc);
-        SetCursorPos((rc.left + rc.right) / 2, (rc.top + rc.bottom) / 2);
-        ShowCursor(FALSE);
+        inst->cursorX = (rc.left + rc.right) / 2;
+        inst->cursorY = (rc.top + rc.bottom) / 2;
+        SetCursorPos(inst->cursorX, inst->cursorY);
+        ShowCursor(TRUE);
         break;
     case WM_PAINT:
         graphics->render();
@@ -126,22 +128,35 @@ LRESULT CALLBACK Window::WndProc(
     }
     case WM_MOUSEMOVE:
     {
+        if (inst == nullptr)
+            break;
+
         RECT rc;
         GetClientRect(hWnd, &rc);
 
-        POINT centerClient = { (rc.right + rc.left) / 2, (rc.top + rc.bottom) / 2 };
-		int cursorX = GET_X_LPARAM(lParam); 
-		int cursorY = GET_Y_LPARAM(lParam);
+        //POINT centerScreen = centerClient;
+        //ClientToScreen(hWnd, &centerScreen);
+        //SetCursorPos(centerScreen.x, centerScreen.y);
 
-        POINT centerScreen = centerClient;
-        ClientToScreen(hWnd, &centerScreen);
-        SetCursorPos(centerScreen.x, centerScreen.y);
+        int newCursorX = GET_X_LPARAM(lParam);
+        int newCursorY = GET_Y_LPARAM(lParam);
 
-        int dx = centerClient.x -  cursorX;
-        int dy = centerClient.y - cursorY ;
-        if (dx != 0 || dy != 0) {
+        int dx, dy;
+
+        if (inst->first) {
+            dx = dy = 0;
+            inst->first = false;
+        }
+        else {
+            dx = newCursorX - inst->cursorX;
+            dy = newCursorY - inst->cursorY;
+
             graphics->rotate(dx, dy);
         }
+
+        inst->cursorX = newCursorX;
+        inst->cursorY = newCursorY;
+
         break;
     }
     case WM_SIZE:
