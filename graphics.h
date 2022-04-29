@@ -194,6 +194,8 @@ private:
     bool moveUp = false;
     bool moveDown = false;
 
+    int DrawMask = 0;
+
     // movement speed
     const float moveSpeed = 15.0f;
     

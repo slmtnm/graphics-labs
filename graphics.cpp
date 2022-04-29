@@ -587,7 +587,7 @@ void Graphics::renderScene() {
     // Render sphere grid
     PBRConstantBuffer pbrCB;
     ZeroMemory(&pbrCB, sizeof(PBRConstantBuffer));
-    pbrCB.DrawMask = 3;
+    pbrCB.DrawMask = DrawMask;
     pbrCB.View = XMMatrixTranspose(camera.view());
     pbrCB.Projection = XMMatrixTranspose(camera.projection());
     pbrCB.World = XMMatrixIdentity();
@@ -613,7 +613,7 @@ void Graphics::renderScene() {
 
     const int GridSize = 8;
 
-    for (int y = -GridSize / 2, roughness = 0.01; y < GridSize / 2; y++)
+    for (int y = -GridSize / 2; y < GridSize / 2; y++)
     {
         mtlCB.metalness = 0.01f + (y + GridSize / 2) * (1 - 0.01f) / (GridSize - 1);
         for (int x = -GridSize / 2; x < GridSize / 2; x++)
@@ -636,26 +636,19 @@ void Graphics::renderGUI() {
     ImGui_ImplWin32_NewFrame();
     ImGui::NewFrame();
 
-    static float f = 0.0f;
-    static int counter = 0;
-    static bool show_demo_window, show_another_window;
-    float clear_color[4];
+    ImGui::Begin("PBR Setting");
 
-    ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
+    ImGui::Text("Render mode");
 
-    ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
-    ImGui::Checkbox("Demo Window", &show_demo_window);      // Edit bools storing our window open/close state
-    ImGui::Checkbox("Another Window", &show_another_window);
+    if (ImGui::RadioButton("Complete scene", DrawMask == 0))
+        DrawMask = 0;
+    if (ImGui::RadioButton("Normal Distributional Function", DrawMask == 1))
+        DrawMask = 1;
+    if (ImGui::RadioButton("Fresnel Function", DrawMask == 2))
+        DrawMask = 2;
+    if (ImGui::RadioButton("Geometry Function", DrawMask == 3))
+        DrawMask = 3;
 
-    ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
-    ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
-
-    if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
-        counter++;
-    ImGui::SameLine();
-    ImGui::Text("counter = %d", counter);
-
-    ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
     ImGui::End();
 
     ImGui::Render();
@@ -764,56 +757,57 @@ float Graphics::calcMeanBrightness(ID3D11Texture2D* brightnessPixelTex2D) {
 
 void Graphics::render() {
     moveCamera();
-
-    ID3D11ShaderResourceView* brightnessPixelSRV = nullptr;
-    ID3D11Texture2D* brightnessPixelTex2D = nullptr;
-
-    bool brightness_ok = evalMeanBrightnessTex(brightnessPixelSRV, brightnessPixelTex2D);
-    if (!brightness_ok)
-        printf("Failed eval mean brightness :(");
-    auto meanBrightness = calcMeanBrightness(brightnessPixelTex2D);
-
-    const float adaptationTime = 1.5f;
-    float curMeanBrightness;
-    if (std::fabs(prevMeanBrightness + 1) > 1e-6)
-        curMeanBrightness = prevMeanBrightness + (meanBrightness - prevMeanBrightness) * (1 - exp(-deltaTime / adaptationTime));
-    else
-        curMeanBrightness = meanBrightness;
-    prevMeanBrightness = curMeanBrightness;
-
     renderGUI();
 
-    setViewport(width, height);
-    setRenderTarget(swapChainRTV);
+    if (DrawMask == 0)
+    {
+        ID3D11ShaderResourceView* brightnessPixelSRV = nullptr;
+        ID3D11Texture2D* brightnessPixelTex2D = nullptr;
 
-    TonemapConstantBuffer cb;
-    ZeroMemory(&cb, sizeof(TonemapConstantBuffer));
-    cb.meanBrightness = curMeanBrightness;
+        bool brightness_ok = evalMeanBrightnessTex(brightnessPixelSRV, brightnessPixelTex2D);
+        if (!brightness_ok)
+            printf("Failed eval mean brightness :(");
+        auto meanBrightness = calcMeanBrightness(brightnessPixelTex2D);
 
-    startEvent(L"DrawScreenQuad");
-    cb.isBrightnessWindow = 0;
-    tonemapCbuf->update(cb);
-    screenQuadPrim->render(tonemapShader, samplerState, baseSRV);
-    endEvent();
-    
-    startEvent(L"DrawBrightQuad");
-    cb.isBrightnessWindow = 1;
-    tonemapCbuf->update(cb);
-    brightQuadPrim->render(tonemapShader, samplerState, brightnessPixelSRV);
-    endEvent();
+        const float adaptationTime = 1.5f;
+        float curMeanBrightness;
+        if (std::fabs(prevMeanBrightness + 1) > 1e-6)
+            curMeanBrightness = prevMeanBrightness + (meanBrightness - prevMeanBrightness) * (1 - exp(-deltaTime / adaptationTime));
+        else
+            curMeanBrightness = meanBrightness;
+        prevMeanBrightness = curMeanBrightness;
 
-    if (brightnessPixelSRV)
-        brightnessPixelSRV->Release();
-    if (brightnessPixelTex2D)
-        brightnessPixelTex2D->Release();
+        setViewport(width, height);
+        setRenderTarget(swapChainRTV);
 
+        TonemapConstantBuffer cb;
+        ZeroMemory(&cb, sizeof(TonemapConstantBuffer));
+        cb.meanBrightness = curMeanBrightness;
+
+        startEvent(L"DrawScreenQuad");
+        cb.isBrightnessWindow = 0;
+        tonemapCbuf->update(cb);
+        screenQuadPrim->render(tonemapShader, samplerState, baseSRV);
+        endEvent();
+
+        startEvent(L"DrawBrightQuad");
+        cb.isBrightnessWindow = 1;
+        tonemapCbuf->update(cb);
+        brightQuadPrim->render(tonemapShader, samplerState, brightnessPixelSRV);
+        endEvent();
+
+        if (brightnessPixelSRV)
+            brightnessPixelSRV->Release();
+        if (brightnessPixelTex2D)
+            brightnessPixelTex2D->Release();
+    }
+    else
+    {
+        setViewport(width, height);
+        setRenderTarget(swapChainRTV);
+        renderScene();
+    }
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
-
-    /*
-    setViewport(width, height);
-    setRenderTarget(swapChainRTV);
-    renderScene();
-    */
 
     swapChain->Present(0, 0);
 

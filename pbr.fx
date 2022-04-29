@@ -20,8 +20,8 @@ cbuffer PBRConstantBuffer : register(b0)
  * drawMask:
  * 0 -- Full PBR
  * 1 -- D
- * 2 -- G
- * 3 -- F
+ * 2 -- F
+ * 3 -- G
  */
 
 cbuffer MaterialConstantBuffer : register(b1)
@@ -153,7 +153,7 @@ float4 PS(VS_OUTPUT input) : SV_Target
         // light color
         float4 lightColor = LightColor[i] * LightIntensity[i];
         // result color
-        float3 color = fr(input.Color.rgb, n, v, l) * lightColor.rgb; // * max(0, dot(l, n));
+        float3 color = fr(input.Color.rgb, n, v, l) * lightColor.rgb;
         if (DrawMask == 0)
             color *= max(0, dot(l, n));
 
