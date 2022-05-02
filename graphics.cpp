@@ -6,6 +6,7 @@
 #include <cmath>
 #include <tuple>
 #include <algorithm>
+#include "DDSTextureLoader.h"
 
 #include "imgui.h"
 #include "imgui_impl_win32.h"
@@ -17,6 +18,8 @@
 #include "primitive.h"
 #include "spotlight.h"
 #include "const_buffer.h"
+
+#pragma comment(lib, "DirectXTK.lib")
 
 
 std::shared_ptr<Graphics> Graphics::inst(new Graphics);
@@ -269,7 +272,7 @@ void Graphics::initShaders()
     auto graphics = inst; // alias
 
     // Create constant buffers
-    //graphics->simpleCbuf = std::make_unique<ConstBuffer<SimpleConstantBuffer>>();
+    graphics->simpleCbuf = std::make_unique<ConstBuffer<SimpleConstantBuffer>>();
     graphics->pbrCbuf = std::make_unique<ConstBuffer<PBRConstantBuffer>>();
     graphics->materialCbuf = std::make_unique<ConstBuffer<MaterialConstantBuffer>>();
     graphics->brightnessCbuf = std::make_unique<ConstBuffer<BrightnessConstantBuffer>>();
@@ -291,6 +294,13 @@ void Graphics::initShaders()
         { 
             { graphics->pbrCbuf->appliedConstBuffer(), true, true },
             { graphics->materialCbuf->appliedConstBuffer(), false, true }
+        });
+
+
+    graphics->skyboxShader = ShaderFactory::makeShaders(L"skybox.fx", simpleLayout, 3);
+    graphics->skyboxShader->addConstBuffers(
+        {
+            { graphics->simpleCbuf->appliedConstBuffer(), true, false }
         });
 
     D3D11_INPUT_ELEMENT_DESC brightLayout[] =
@@ -429,7 +439,43 @@ bool Graphics::createCPUAccessedTexture(ID3D11Texture2D*& dst, ID3D11Texture2D* 
 }
 
 
-bool Graphics::createQuad()
+bool Graphics::createSkybox()
+{
+    bool success = createSphere(skyboxPrim, 100.0f, true);
+    if (!success)
+        return false;
+
+    ID3D11Texture2D* skyboxTex = nullptr;
+
+    auto hr = CreateDDSTextureFromFileEx(inst->device, L"skymap.dds",
+        0, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE, 0,
+        D3D11_RESOURCE_MISC_TEXTURECUBE, false, 
+        (ID3D11Resource **)&skyboxTex, &skyboxSRV);
+
+    if (FAILED(hr))
+        return false;
+
+    if (skyboxTex)
+        skyboxTex->Release();
+
+    D3D11_SAMPLER_DESC sampDesc;
+    ZeroMemory(&sampDesc, sizeof(sampDesc));
+    sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
+    sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
+    sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
+    sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
+    sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+    sampDesc.MinLOD = 0;
+    sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
+
+    //Create the Sample State
+    hr = device->CreateSamplerState(&sampDesc, &skyboxSamplerState);
+
+    return SUCCEEDED(hr);
+}
+
+
+bool Graphics::createQuad(std::shared_ptr<Primitive>& prim)
 {
     // Create vertex buffer
     auto color = XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f);
@@ -448,9 +494,9 @@ bool Graphics::createQuad()
         2, 0, 3
     };
 
-    /*quadPrim = PrimitiveFactory::create<SimpleVertex>(vertices, 4, indices, 6);
-    if (!quadPrim)
-        return false;*/
+    prim = PrimitiveFactory::create<SimpleVertex>(vertices, 4, indices, 6);
+    if (!prim)
+        return false;
     return true;
 }
 
@@ -478,7 +524,7 @@ bool Graphics::createScreenQuad(std::shared_ptr<Primitive> &prim, bool full, flo
     return true;
 }
 
-bool Graphics::createSphere(float R)
+bool Graphics::createSphere(std::shared_ptr<Primitive>& prim, float R, bool invDir)
 {
     const int N = 50, M = 50;
     const float PI = 3.14159f;
@@ -489,7 +535,7 @@ bool Graphics::createSphere(float R)
     // vertices
     for (int idx = 0, i = 0; i < N; i++)
     {
-        float theta = i * PI / (N - 1);
+        float theta = invDir ? PI - i * PI / (N - 1) : i * PI / (N - 1);
 
         for (int j = 0; j < M; idx++, j++)
         {
@@ -520,8 +566,8 @@ bool Graphics::createSphere(float R)
         indices[(i + 1) * (N * 2 + 1) - 1] = -1;
     }
 
-    spherePrim = PrimitiveFactory::create<SimpleVertex>(vertices, indices, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-    if (!spherePrim)
+    prim = PrimitiveFactory::create<SimpleVertex>(vertices, indices, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+    if (!prim)
         return false;
     return true;
 }
@@ -530,9 +576,10 @@ bool Graphics::createSphere(float R)
 bool Graphics::initGeometry() {
     bool success = true;
     //success &= createQuad();
-    success &= createSphere(radius);
+    success &= createSphere(spherePrim, radius);
     success &= createScreenQuad(screenQuadPrim, true);
     success &= createScreenQuad(brightQuadPrim, false, 0.8f);
+    success &= createSkybox();
 
     return success;
 }
@@ -627,6 +674,16 @@ void Graphics::renderScene() {
             spherePrim->render(pbrShader);
         }
     }
+    endEvent();
+
+    // render skybox
+    startEvent(L"DrawSkybox");
+    SimpleConstantBuffer simpleCB;
+    simpleCB.mWorld = XMMatrixTranspose(XMMatrixTranslation(pos[0], pos[1], pos[2]));
+    simpleCB.mView = XMMatrixTranspose(camera.view());
+    simpleCB.mProjection = XMMatrixTranspose(camera.projection());
+    simpleCbuf->update(simpleCB);
+    skyboxPrim->render(skyboxShader, skyboxSamplerState, skyboxSRV);
     endEvent();
 }
 
@@ -807,6 +864,7 @@ void Graphics::render() {
         setRenderTarget(swapChainRTV);
         renderScene();
     }
+
     ImGui_ImplDX11_RenderDrawData(ImGui::GetDrawData());
 
     swapChain->Present(0, 0);
@@ -823,19 +881,23 @@ void Graphics::cleanup() {
 
     if (swapChainRTV) swapChainRTV->Release();
     if (baseTextureRTV) baseTextureRTV->Release();
+    if (skyboxSRV) skyboxSRV->Release();
+    if (baseSRV) baseSRV->Release();
 
     //simpleShader->cleanup();
+    skyboxShader->cleanup();
     pbrShader->cleanup();
     brightShader->cleanup();
     tonemapShader->cleanup();
 
-    //simpleCbuf->cleanup();
+    simpleCbuf->cleanup();
     pbrCbuf->cleanup();
     materialCbuf->cleanup();
     brightnessCbuf->cleanup();
     tonemapCbuf->cleanup();
 
     //quadPrim->cleanup();
+    skyboxPrim->cleanup();
     spherePrim->cleanup();
     screenQuadPrim->cleanup();
     brightQuadPrim->cleanup();
@@ -846,8 +908,8 @@ void Graphics::cleanup() {
     if (swapChain) swapChain->Release();
     if (annotation) annotation->Release();
 
-    if (baseSRV) baseSRV->Release();
     if (samplerState) samplerState->Release();
+    if (skyboxSamplerState) skyboxSamplerState->Release();
 
     if (context) context->ClearState();
     if (context1) context1->Release();

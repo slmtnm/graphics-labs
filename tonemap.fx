@@ -80,6 +80,7 @@ float4 PS(VS_OUTPUT input) : SV_TARGET
     float4 color = tex.Sample(samLinear, input.Tex);
     float3 resultColor = TonemapFilmic(float3(color[0], color[1], color[2]));
 
+
     return isBrightnessWindow ?
         float4(exp(color[0]) - 1.0f, exp(color[1]) - 1.0f, exp(color[2]) - 1.0f, 1.0f) :
         float4(resultColor, color[3]);

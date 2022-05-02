@@ -79,9 +79,10 @@ private:
     void setViewport(UINT width, UINT height);
     void setRenderTarget(ID3D11RenderTargetView* rtv, bool useDSV = true);
 
-    bool createQuad();
+    bool createQuad(std::shared_ptr<Primitive>& prim);
     bool createScreenQuad(std::shared_ptr<Primitive> &prim, bool full, float val = 0.0f);
-    bool createSphere(float R);
+    bool createSphere(std::shared_ptr<Primitive>& prim, float R, bool invDir = false);
+    bool createSkybox();
 
     static std::shared_ptr<Graphics> inst;
 
@@ -102,6 +103,9 @@ private:
     ID3D11RenderTargetView* baseTextureRTV = nullptr;
     ID3D11ShaderResourceView* baseSRV = nullptr;
     ID3D11SamplerState* samplerState = nullptr;
+
+    ID3D11SamplerState* skyboxSamplerState = nullptr;
+    ID3D11ShaderResourceView* skyboxSRV = nullptr;
 
     //------------//
     ID3DUserDefinedAnnotation* annotation = nullptr;
@@ -169,11 +173,13 @@ private:
     Camera camera;
 
     std::unique_ptr<Shader>
-        /*simpleShader, */ pbrShader, brightShader, tonemapShader;
-    std::unique_ptr<Primitive> /*quadPrim, */ spherePrim;
-    std::shared_ptr<Primitive> screenQuadPrim, brightQuadPrim;
+        /*simpleShader, */ pbrShader, brightShader, tonemapShader, skyboxShader;
+    //std::unique_ptr<Primitive> quadPrim;
+    std::shared_ptr<Primitive> 
+        screenQuadPrim, brightQuadPrim,
+        spherePrim, skyboxPrim;
 
-    //std::unique_ptr<ConstBuffer<SimpleConstantBuffer>> simpleCbuf;
+    std::unique_ptr<ConstBuffer<SimpleConstantBuffer>> simpleCbuf;
     std::unique_ptr<ConstBuffer<PBRConstantBuffer>> pbrCbuf;
     std::unique_ptr<ConstBuffer<MaterialConstantBuffer>> materialCbuf;
     std::unique_ptr<ConstBuffer<BrightnessConstantBuffer>> brightnessCbuf;
