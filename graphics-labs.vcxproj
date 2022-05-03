@@ -130,7 +130,7 @@
       </ShaderType>
     </FxCompile>
     <PostBuildEvent>
-      <Command>xcopy /y $(ProjectDir)*.fx $(OutDir)</Command>
+      <Command>for %%f in (lib, dds, fx) do xcopy /y $(ProjectDir)*.%%f $(OutDir)</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
