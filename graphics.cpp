@@ -259,7 +259,7 @@ bool Graphics::createDepthStencil(UINT width, UINT height)
     // Create the depth stencil view
     hr = inst->device->CreateDepthStencilView(pDepthStencil, // Depth stencil texture
         &descDSV, // Depth stencil desc
-        &inst->dsv);  // [out] Depth stencil view
+        &dsv);  // [out] Depth stencil view
 
     dsState->Release();
     pDepthStencil->Release();
@@ -939,8 +939,9 @@ HRESULT Graphics::resizeBackbuffer(UINT width, UINT height) {
     context->OMSetRenderTargets(ARRAYSIZE(nullViews), nullViews, nullptr);
 
     if (swapChainRTV) swapChainRTV->Release();
-
-    //if (baseTextureRTV) baseTextureRTV->Release();
+    if (baseTextureRTV) baseTextureRTV->Release();
+    if (baseSRV) baseSRV->Release();
+    if (dsv) dsv->Release();
     context->Flush();
 
     hr = swapChain->ResizeBuffers(1, width, height, DXGI_FORMAT_R8G8B8A8_UNORM_SRGB, 0);
@@ -957,6 +958,13 @@ HRESULT Graphics::resizeBackbuffer(UINT width, UINT height) {
         return hr;
  
     backBuffer->Release();
+
+    if (!inst->createRenderTargetTexture(
+        width, height, baseTextureRTV, baseSRV, samplerState, DXGI_FORMAT_R32G32B32A32_FLOAT, false))
+        return S_FALSE;
+
+    if (!inst->createDepthStencil(width, height))
+        return S_FALSE;;
 
     setViewport(width, height);
 
