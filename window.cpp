@@ -2,10 +2,14 @@
 #include <windowsx.h>
 #include <d3d11_1.h>
 #include <tchar.h>
+#include "imgui_impl_win32.h"
 #include "window.h"
 #include "graphics.h"
 
-std::shared_ptr<Window> Window::inst;
+extern IMGUI_IMPL_API LRESULT ImGui_ImplWin32_WndProcHandler(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam);
+
+
+std::shared_ptr<Window> Window::inst(new Window);
 std::shared_ptr<Graphics> Window::graphics;
 
 bool Window::onCreate(HWND hWnd, std::shared_ptr<Graphics>& graphics) {
@@ -26,14 +30,20 @@ LRESULT CALLBACK Window::WndProc(
     _In_ UINT msg,
     _In_ WPARAM wParam,
     _In_ LPARAM lParam) {
+
+    if (ImGui_ImplWin32_WndProcHandler(hWnd, msg, wParam, lParam))
+        return true;
+
     switch (msg) {
     case WM_CREATE:
         if (!inst->onCreate(hWnd, graphics))
             exit(0);
         RECT rc;
         GetWindowRect(hWnd, &rc);
-        SetCursorPos((rc.left + rc.right) / 2, (rc.top + rc.bottom) / 2);
-        ShowCursor(FALSE);
+        inst->cursorX = (rc.left + rc.right) / 2;
+        inst->cursorY = (rc.top + rc.bottom) / 2;
+        SetCursorPos(inst->cursorX, inst->cursorY);
+        ShowCursor(TRUE);
         break;
     case WM_PAINT:
         graphics->render();
@@ -74,16 +84,16 @@ LRESULT CALLBACK Window::WndProc(
         case 0x32: // 2
             graphics->decreaseLightIntensity(0);
             break;
-        case 0x33: // 1
+        case 0x33: // 3
             graphics->increaseLightIntensity(1);
             break;
-        case 0x34: // 2
+        case 0x34: // 4
             graphics->decreaseLightIntensity(1);
             break;
-        case 0x35: // 1
+        case 0x35: // 5
             graphics->increaseLightIntensity(2);
             break;
-        case 0x36: // 2
+        case 0x36: // 6
             graphics->decreaseLightIntensity(2);
             break;
         case VK_OEM_PLUS: // +
@@ -124,24 +134,40 @@ LRESULT CALLBACK Window::WndProc(
         }
         break;
     }
+    case WM_RBUTTONDOWN:
+        inst->cursorX = GET_X_LPARAM(lParam);
+        inst->cursorY = GET_Y_LPARAM(lParam);
+        break;
     case WM_MOUSEMOVE:
     {
+        if (inst == nullptr)
+            break;
+
+        if (!(wParam & MK_RBUTTON))
+            break;
+
         RECT rc;
         GetClientRect(hWnd, &rc);
 
-        POINT centerClient = { (rc.right + rc.left) / 2, (rc.top + rc.bottom) / 2 };
-		int cursorX = GET_X_LPARAM(lParam); 
-		int cursorY = GET_Y_LPARAM(lParam);
+        int newCursorX = GET_X_LPARAM(lParam);
+        int newCursorY = GET_Y_LPARAM(lParam);
 
-        POINT centerScreen = centerClient;
-        ClientToScreen(hWnd, &centerScreen);
-        SetCursorPos(centerScreen.x, centerScreen.y);
+        int dx, dy;
 
-        int dx = centerClient.x -  cursorX;
-        int dy = centerClient.y - cursorY ;
-        if (dx != 0 || dy != 0) {
+        if (inst->first) {
+            dx = dy = 0;
+            inst->first = false;
+        }
+        else {
+            dx = newCursorX - inst->cursorX;
+            dy = newCursorY - inst->cursorY;
+
             graphics->rotate(dx, dy);
         }
+
+        inst->cursorX = newCursorX;
+        inst->cursorY = newCursorY;
+
         break;
     }
     case WM_SIZE:

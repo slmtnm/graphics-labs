@@ -1,6 +1,6 @@
 #include "camera.h"
 
-Camera::Camera() : position({ 0.f, 0.f, -5.f, 0.f }), direction({ 0.f, 0.f, 1.f, 0.f }) {
+Camera::Camera() : position({ 0.f, 0.f, -50.f, 0.f }), direction({ 0.f, 0.f, 1.f, 0.f }) {
     updateViewMatrix();
     updateProjectionMatrix();
 }
@@ -26,11 +26,11 @@ void Camera::updateDirection() {
     );
 }
 
-XMMATRIX Camera::view() {
+XMMATRIX Camera::view() const {
     return viewMatrix;
 }
 
-XMMATRIX Camera::projection() {
+XMMATRIX Camera::projection() const {
     return projectionMatrix;
 }
 
@@ -54,10 +54,14 @@ void Camera::rotate(float dx, float dy) {
     updateViewMatrix();
 }
 
-XMVECTOR Camera::getRight() {
+XMVECTOR Camera::getRight() const {
     return XMVector3Normalize(XMVector3Cross({ 0.0f, 1.0f, 0.0f, 0.0f }, direction));
 }
 
-XMVECTOR Camera::getDirection() {
+XMVECTOR Camera::getDirection() const {
     return direction;
+}
+
+XMVECTOR Camera::getPosition() const {
+    return position;
 }

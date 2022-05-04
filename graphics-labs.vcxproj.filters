@@ -25,6 +25,9 @@
     <Filter Include="Graphics\Const buffer">
       <UniqueIdentifier>{69f90368-a132-4b92-9b75-9a999da5e026}</UniqueIdentifier>
     </Filter>
+    <Filter Include="ImGUI">
+      <UniqueIdentifier>{6c2eb52f-7e2c-415c-ac75-3a6001d68c3c}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="camera.cpp">
@@ -49,6 +52,27 @@
     <ClCompile Include="spotlight.cpp">
       <Filter>Graphics\Light</Filter>
     </ClCompile>
+    <ClCompile Include="imgui.cpp">
+      <Filter>ImGUI</Filter>
+    </ClCompile>
+    <ClCompile Include="imgui_impl_dx11.cpp">
+      <Filter>ImGUI</Filter>
+    </ClCompile>
+    <ClCompile Include="imgui_impl_win32.cpp">
+      <Filter>ImGUI</Filter>
+    </ClCompile>
+    <ClCompile Include="imgui_demo.cpp">
+      <Filter>ImGUI</Filter>
+    </ClCompile>
+    <ClCompile Include="imgui_draw.cpp">
+      <Filter>ImGUI</Filter>
+    </ClCompile>
+    <ClCompile Include="imgui_tables.cpp">
+      <Filter>ImGUI</Filter>
+    </ClCompile>
+    <ClCompile Include="imgui_widgets.cpp">
+      <Filter>ImGUI</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="camera.h">
@@ -72,6 +96,30 @@
     <ClInclude Include="const_buffer.h">
       <Filter>Graphics\Const buffer</Filter>
     </ClInclude>
+    <ClInclude Include="imgui.h">
+      <Filter>ImGUI</Filter>
+    </ClInclude>
+    <ClInclude Include="imgui_impl_dx11.h">
+      <Filter>ImGUI</Filter>
+    </ClInclude>
+    <ClInclude Include="imgui_impl_win32.h">
+      <Filter>ImGUI</Filter>
+    </ClInclude>
+    <ClInclude Include="imgui_internal.h">
+      <Filter>ImGUI</Filter>
+    </ClInclude>
+    <ClInclude Include="imstb_rectpack.h">
+      <Filter>ImGUI</Filter>
+    </ClInclude>
+    <ClInclude Include="imstb_textedit.h">
+      <Filter>ImGUI</Filter>
+    </ClInclude>
+    <ClInclude Include="imstb_truetype.h">
+      <Filter>ImGUI</Filter>
+    </ClInclude>
+    <ClInclude Include="imconfig.h">
+      <Filter>ImGUI</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="simple.fx">
@@ -81,6 +129,12 @@
       <Filter>Shader</Filter>
     </FxCompile>
     <FxCompile Include="tonemap.fx">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="pbr.fx">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="skybox.fx">
       <Filter>Shader</Filter>
     </FxCompile>
   </ItemGroup>

@@ -13,7 +13,7 @@ class Camera {
 	XMVECTOR position;
 	XMVECTOR direction;
 
-	const float fov = XM_PIDIV2;
+	const float fov = XM_PIDIV4;
 	const float nearZ = 0.01f;
 	const float farZ = 10000.f;
 	float aspectRatio = 1;
@@ -30,11 +30,13 @@ class Camera {
 public:
 	Camera();
 
-	XMMATRIX view();
-	XMMATRIX projection();
+	XMMATRIX view() const;
+	XMMATRIX projection() const;
 
-	XMVECTOR getRight();
-	XMVECTOR getDirection();
+	XMVECTOR getRight() const;
+	XMVECTOR getDirection() const;
+
+	XMVECTOR getPosition() const;
 
 	void setAspectRatio(const float aspectRatio);
 	void move(XMVECTOR delta);

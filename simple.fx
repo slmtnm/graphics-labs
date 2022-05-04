@@ -10,7 +10,6 @@ cbuffer SimpleConstantBuffer : register( b0 )
     float4 LightDir[4];
     float4 LightCutoff;
     float4 LightIntensity;
-    int _dummy[8];
 }
 
 //--------------------------------------------------------------------------------------
@@ -42,7 +41,7 @@ VS_OUTPUT VS( VS_INPUT input )
     output.Pos = mul( output.Pos, Projection );
     output.Color = input.Color;
     output.Norm = input.Norm;
-    output.WorldPos = mul(input.Pos, World);
+    output.WorldPos = mul(float4(input.Pos, 1.0f), World);
 
     return output;
 }
@@ -57,11 +56,11 @@ float4 PS(VS_OUTPUT input) : SV_Target
 
     for (uint i = 0; i < 3; i++) {
 		// light color
-		float4 lightColor = float4(1.0f, 1.0f, 1.0f, 1.0f) * LightIntensity[i];
+		float3 lightColor = float3(1.0f, 1.0f, 1.0f) * LightIntensity[i];
 
 		// ambient component
 		float ambientStrength = 0.1;
-		float4 ambient = lightColor * ambientStrength;
+		float4 ambient = float4(lightColor * ambientStrength, 1.0f);
 
         // direction from point to light
         float3 lightDir = normalize(LightPos[i].xyz - input.WorldPos.xyz);
@@ -69,8 +68,8 @@ float4 PS(VS_OUTPUT input) : SV_Target
 		float theta = dot(LightDir[i], - lightDir);
 		if (theta > LightCutoff[i]) {
             // diffuse component
-            float4 diffuse = max(dot(input.Norm, lightDir), 0.0) * float4(1.0f, 1.0f, 1.0f, 1.0f);
-            resultColor *= ambient + diffuse;
+            float3 diffuse = max(dot(input.Norm, lightDir), 0.0) * float3(1.0f, 1.0f, 1.0f);
+            resultColor *= ambient + float4(diffuse, 1.0f);
         }
     }
 

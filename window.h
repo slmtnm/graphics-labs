@@ -32,5 +32,7 @@ private:
 
     static std::shared_ptr<Window> inst;
     static std::shared_ptr<Graphics> graphics;
+    int cursorX, cursorY;
+    bool first = true;
 };
 
