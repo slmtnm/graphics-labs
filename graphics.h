@@ -33,6 +33,15 @@ public:
         float LightIntensity[4]; // only first component is used
     };
 
+    struct MaterialConstantBuffer
+    {
+        XMMATRIX World;
+        XMFLOAT3 F0;
+        float roughness;
+        float metalness;
+        float _dummy[3];
+    };
+
     // factory method
     static std::shared_ptr<Graphics> init(HWND hWnd);
     static std::shared_ptr<Graphics> get();
@@ -71,6 +80,9 @@ public:
     void endEvent();
 
     std::shared_ptr<ConstBuffer<SimpleConstantBuffer>> getSimpleCbuf() const;
+    std::shared_ptr<ConstBuffer<MaterialConstantBuffer>> getMaterialCbuf() const;
+
+    std::shared_ptr<Shader> getPBRShader() const;
     Camera& getCamera();
     ID3D11SamplerState* getSamplerState() const;
 
@@ -122,7 +134,6 @@ private:
 
     struct PBRConstantBuffer
     {
-        XMMATRIX World;
         XMMATRIX View;
         XMMATRIX Projection;
         // lights
@@ -132,14 +143,6 @@ private:
         // camera
         XMFLOAT3 CameraPos;
         int DrawMask;
-    };
-
-    struct MaterialConstantBuffer
-    {
-        XMFLOAT3 F0;
-        float roughness;
-        float metalness;
-        float _dummy[3];
     };
 
     struct TonemapConstantBuffer
@@ -157,16 +160,14 @@ private:
 
     Camera camera;
 
-    std::unique_ptr<Shader>
-        /*simpleShader, */ pbrShader, brightShader, tonemapShader, skyboxShader;
+    std::shared_ptr<Shader> pbrShader, brightShader, tonemapShader;
     //std::unique_ptr<Primitive> quadPrim;
     std::shared_ptr<Primitive> 
-        screenQuadPrim, brightQuadPrim,
-        spherePrim;
+        screenQuadPrim, brightQuadPrim;
 
     std::shared_ptr<ConstBuffer<SimpleConstantBuffer>> simpleCbuf;
+    std::shared_ptr<ConstBuffer<MaterialConstantBuffer>> materialCbuf;
     std::unique_ptr<ConstBuffer<PBRConstantBuffer>> pbrCbuf;
-    std::unique_ptr<ConstBuffer<MaterialConstantBuffer>> materialCbuf;
     std::unique_ptr<ConstBuffer<BrightnessConstantBuffer>> brightnessCbuf;
     std::unique_ptr<ConstBuffer<TonemapConstantBuffer>> tonemapCbuf;
 
@@ -193,8 +194,6 @@ private:
     
     // mouse sensitivity
     const float sensitivity = 0.1f;
-
-    const float radius = 2.0f;
 
     // last frame timestamp
     DWORD lastFrame = timeGetTime();

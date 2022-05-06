@@ -8,7 +8,7 @@ void Primitive::cleanup()
 }
 
 void Primitive::render(
-    std::unique_ptr<Shader> const& shader, ID3D11SamplerState* samplerState, ID3D11ShaderResourceView* tex)
+    std::shared_ptr<Shader> shader, ID3D11SamplerState* samplerState, ID3D11ShaderResourceView* tex)
 {
     shader->apply();
 

@@ -82,6 +82,9 @@
     <ClCompile Include="primitive_samples.cpp">
       <Filter>Graphics\Primitive</Filter>
     </ClCompile>
+    <ClCompile Include="unit_sphere_scene.cpp">
+      <Filter>Graphics\Units</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="camera.h">
@@ -137,6 +140,9 @@
     </ClInclude>
     <ClInclude Include="primitive_samples.h">
       <Filter>Graphics\Primitive</Filter>
+    </ClInclude>
+    <ClInclude Include="unit_sphere_scene.h">
+      <Filter>Graphics\Units</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

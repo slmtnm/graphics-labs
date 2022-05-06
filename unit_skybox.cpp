@@ -43,7 +43,7 @@ bool UnitSkybox::init(std::shared_ptr<Graphics> graphics)
     return true;
 }
 
-void UnitSkybox::preparForRender(std::shared_ptr<Graphics>)
+void UnitSkybox::prepareForRender(std::shared_ptr<Graphics>)
 {
 }
 
@@ -65,5 +65,6 @@ void UnitSkybox::render(std::shared_ptr<Graphics> graphics)
 void UnitSkybox::cleanup(std::shared_ptr<Graphics>)
 {
     skyboxPrim->cleanup();
+    skyboxShader->cleanup();
     if (skyboxSRV) skyboxSRV->Release();
 }

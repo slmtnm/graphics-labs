@@ -167,6 +167,7 @@
     <ClCompile Include="Shader.cpp" />
     <ClCompile Include="spotlight.cpp" />
     <ClCompile Include="unit_skybox.cpp" />
+    <ClCompile Include="unit_sphere_scene.cpp" />
     <ClCompile Include="window.cpp" />
   </ItemGroup>
   <ItemGroup>
@@ -187,6 +188,7 @@
     <ClInclude Include="Shader.h" />
     <ClInclude Include="unit.h" />
     <ClInclude Include="unit_skybox.h" />
+    <ClInclude Include="unit_sphere_scene.h" />
     <ClInclude Include="window.h" />
   </ItemGroup>
   <ItemGroup>

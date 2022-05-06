@@ -295,14 +295,7 @@ void Graphics::initShaders()
     graphics->pbrShader->addConstBuffers(
         { 
             { graphics->pbrCbuf->appliedConstBuffer(), true, true },
-            { graphics->materialCbuf->appliedConstBuffer(), false, true }
-        });
-
-
-    graphics->skyboxShader = ShaderFactory::makeShaders(L"skybox.fx", simpleLayout, 3);
-    graphics->skyboxShader->addConstBuffers(
-        {
-            { graphics->simpleCbuf->appliedConstBuffer(), true, false }
+            { graphics->materialCbuf->appliedConstBuffer(), true, true }
         });
 
     D3D11_INPUT_ELEMENT_DESC brightLayout[] =
@@ -448,7 +441,6 @@ bool Graphics::initGeometry() {
         u->init(inst);
 
     //success &= createQuad();
-    success &= PrimitiveSample::createSphere(spherePrim, radius);
     success &= PrimitiveSample::createScreenQuad(screenQuadPrim, true);
     success &= PrimitiveSample::createScreenQuad(brightQuadPrim, false, 0.8f);
 
@@ -503,18 +495,14 @@ void Graphics::endEvent()
 
 void Graphics::renderScene() {
     for (auto& u : units)
-        u->preparForRender(inst);
+        u->prepareForRender(inst);
 
-    for (auto& u : units)
-        u->render(inst);
-
-    // Render sphere grid
+    // Setup common constant buffer
     PBRConstantBuffer pbrCB;
     ZeroMemory(&pbrCB, sizeof(PBRConstantBuffer));
     pbrCB.DrawMask = DrawMask;
     pbrCB.View = XMMatrixTranspose(camera.view());
     pbrCB.Projection = XMMatrixTranspose(camera.projection());
-    pbrCB.World = XMMatrixIdentity();
 
     // Setup lights
     for (size_t idx = 0; idx < spotLights.size(); idx++) {
@@ -525,33 +513,10 @@ void Graphics::renderScene() {
     auto pos = camera.getPosition().m128_f32;
     pbrCB.CameraPos = XMFLOAT3(pos[0], pos[1], pos[2]);
 
-    // TODO update material in loop
-    MaterialConstantBuffer mtlCB;
-    ZeroMemory(&mtlCB, sizeof(MaterialConstantBuffer));
-    mtlCB.roughness = 0.5f;
-    mtlCB.metalness = 0.1f;
-    mtlCB.F0 = XMFLOAT3(0.95f, 0.64f, 0.54f);
+    pbrCbuf->update(pbrCB);
 
-    startEvent(L"DrawSphereGrid");
-    //quadPrim->render(simpleShader);
-
-    const int GridSize = 8;
-
-    for (int y = -GridSize / 2; y < GridSize / 2; y++)
-    {
-        mtlCB.metalness = 0.01f + (y + GridSize / 2) * (1 - 0.01f) / (GridSize - 1);
-        for (int x = -GridSize / 2; x < GridSize / 2; x++)
-        {
-            mtlCB.roughness = 0.01f + (x + GridSize / 2) * (1 - 0.01f) / (GridSize - 1);
-            pbrCB.World = XMMatrixTranspose(XMMatrixTranslation(3 * x * radius, 3 * y * radius, 30.0f));
-            
-            pbrCbuf->update(pbrCB);
-            materialCbuf->update(mtlCB);
-
-            spherePrim->render(pbrShader);
-        }
-    }
-    endEvent();
+    for (auto& u : units)
+        u->render(inst);
 }
 
 void Graphics::renderGUI() {
@@ -745,12 +710,14 @@ void Graphics::cleanup() {
     ImGui_ImplWin32_Shutdown();
     ImGui::DestroyContext();
 
+    for (auto& u : units)
+        u->cleanup(inst);
+
     if (swapChainRTV) swapChainRTV->Release();
     if (baseTextureRTV) baseTextureRTV->Release();
     if (baseSRV) baseSRV->Release();
 
     //simpleShader->cleanup();
-    skyboxShader->cleanup();
     pbrShader->cleanup();
     brightShader->cleanup();
     tonemapShader->cleanup();
@@ -762,7 +729,6 @@ void Graphics::cleanup() {
     tonemapCbuf->cleanup();
 
     //quadPrim->cleanup();
-    spherePrim->cleanup();
     screenQuadPrim->cleanup();
     brightQuadPrim->cleanup();
 
@@ -840,6 +806,16 @@ HRESULT Graphics::resizeBackbuffer(UINT width, UINT height) {
 std::shared_ptr<ConstBuffer<Graphics::SimpleConstantBuffer>> Graphics::getSimpleCbuf() const
 {
     return simpleCbuf;
+}
+
+std::shared_ptr<ConstBuffer<Graphics::MaterialConstantBuffer>> Graphics::getMaterialCbuf() const
+{
+    return materialCbuf;
+}
+
+std::shared_ptr<Shader> Graphics::getPBRShader() const
+{
+    return pbrShader;
 }
 
 Camera& Graphics::getCamera()

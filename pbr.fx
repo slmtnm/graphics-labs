@@ -3,7 +3,6 @@
 //--------------------------------------------------------------------------------------
 cbuffer PBRConstantBuffer : register(b0)
 {
-    matrix World;
     matrix View;
     matrix Projection;
     // lights
@@ -26,6 +25,7 @@ cbuffer PBRConstantBuffer : register(b0)
 
 cbuffer MaterialConstantBuffer : register(b1)
 {
+    matrix World;
     float3 F0;
     float roughness;
     float metalness;
