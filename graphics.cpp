@@ -18,6 +18,8 @@
 #include "primitive.h"
 #include "spotlight.h"
 #include "const_buffer.h"
+#include "primitive_samples.h"
+#include "unit.h"
 
 #pragma comment(lib, "DirectXTK.lib")
 
@@ -439,147 +441,16 @@ bool Graphics::createCPUAccessedTexture(ID3D11Texture2D*& dst, ID3D11Texture2D* 
 }
 
 
-bool Graphics::createSkybox()
-{
-    bool success = createSphere(skyboxPrim, 100.0f, true);
-    if (!success)
-        return false;
-
-    ID3D11Texture2D* skyboxTex = nullptr;
-
-    auto hr = CreateDDSTextureFromFileEx(inst->device, L"skymap.dds",
-        0, D3D11_USAGE_DEFAULT, D3D11_BIND_SHADER_RESOURCE, 0,
-        D3D11_RESOURCE_MISC_TEXTURECUBE, false, 
-        (ID3D11Resource **)&skyboxTex, &skyboxSRV);
-
-    if (FAILED(hr))
-        return false;
-
-    if (skyboxTex)
-        skyboxTex->Release();
-
-    D3D11_SAMPLER_DESC sampDesc;
-    ZeroMemory(&sampDesc, sizeof(sampDesc));
-    sampDesc.Filter = D3D11_FILTER_MIN_MAG_MIP_LINEAR;
-    sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
-    sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
-    sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-    sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
-    sampDesc.MinLOD = 0;
-    sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
-
-    //Create the Sample State
-    hr = device->CreateSamplerState(&sampDesc, &skyboxSamplerState);
-
-    return SUCCEEDED(hr);
-}
-
-
-bool Graphics::createQuad(std::shared_ptr<Primitive>& prim)
-{
-    // Create vertex buffer
-    auto color = XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f);
-    SimpleVertex vertices[] =
-    {
-        { XMFLOAT3(-5.0f, -5.0f, 10.0f), XMFLOAT3(0.0f, 0.0f, -1.0f), color},
-        { XMFLOAT3(5.0f, -5.0f, 10.0f), XMFLOAT3(0.0f, 0.0f, -1.0f), color},
-        { XMFLOAT3(5.0f, 5.0f, 10.0f), XMFLOAT3(0.0f, 0.0f, -1.0f), color},
-        { XMFLOAT3(-5.0f, 5.0f, 10.0f), XMFLOAT3(0.0f, 0.0f, -1.0f), color},
-    };
-
-    // Create index buffer
-    UINT indices[] =
-    {
-        0, 2, 1,
-        2, 0, 3
-    };
-
-    prim = PrimitiveFactory::create<SimpleVertex>(vertices, 4, indices, 6);
-    if (!prim)
-        return false;
-    return true;
-}
-
-
-bool Graphics::createScreenQuad(std::shared_ptr<Primitive> &prim, bool full, float val) {
-    // Create vertex buffer
-    TextureVertex vertices[] =
-    {
-        { XMFLOAT3(-1.0f, full ? -1.0f : val, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f), XMFLOAT2(0.0f, 1.0f)},
-        { XMFLOAT3(full ? 1.0f : -val, full ? -1.0f : val, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f), XMFLOAT2(1.0f, 1.0f)},
-        { XMFLOAT3(full ? 1.0f : -val, 1.0f, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f), XMFLOAT2(1.0f, 0.0f)},
-        { XMFLOAT3(-1.0f, 1.0f, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f), XMFLOAT2(0.0f, 0.0f)},
-    };
-
-    // Create index buffer
-    UINT indices[] =
-    {
-        0, 2, 1,
-        2, 0, 3
-    };
-
-    prim = PrimitiveFactory::create<TextureVertex>(vertices, 4, indices, 6);
-    if (!prim)
-        return false;
-    return true;
-}
-
-bool Graphics::createSphere(std::shared_ptr<Primitive>& prim, float R, bool invDir)
-{
-    const int N = 50, M = 50;
-    const float PI = 3.14159f;
-
-    std::array<SimpleVertex, M * N> vertices;
-    std::array<UINT, (N * 2 + 1) * (M - 1)> indices;
-
-    // vertices
-    for (int idx = 0, i = 0; i < N; i++)
-    {
-        float theta = invDir ? PI - i * PI / (N - 1) : i * PI / (N - 1);
-
-        for (int j = 0; j < M; idx++, j++)
-        {
-            float phi = j * 2 * PI / (M - 1);
-
-            auto
-                x = sin(theta) * sin(phi),
-                y = cos(theta),
-                z = sin(theta) * cos(phi);
-
-            vertices[idx].Pos.x = x * R;
-            vertices[idx].Pos.y = y * R;
-            vertices[idx].Pos.z = z * R;
-
-            vertices[idx].Norm = XMFLOAT3(x, y, z);
-            vertices[idx].Color = XMFLOAT4(1.0f, 0, 0, 1.0f);
-        }
-    }
-
-    // indices
-    for (int i = 0; i < M - 1; i++)
-    {
-        for (int j = 0; j < N; j++)
-        {
-            indices[i * (N * 2 + 1) + 2 * j + 1] = (i + 1) * N + j;
-            indices[i * (N * 2 + 1) + 2 * j] = i * N + j;
-        }
-        indices[(i + 1) * (N * 2 + 1) - 1] = -1;
-    }
-
-    prim = PrimitiveFactory::create<SimpleVertex>(vertices, indices, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-    if (!prim)
-        return false;
-    return true;
-}
-
-
 bool Graphics::initGeometry() {
     bool success = true;
+
+    for (auto& u : units)
+        u->init(inst);
+
     //success &= createQuad();
-    success &= createSphere(spherePrim, radius);
-    success &= createScreenQuad(screenQuadPrim, true);
-    success &= createScreenQuad(brightQuadPrim, false, 0.8f);
-    success &= createSkybox();
+    success &= PrimitiveSample::createSphere(spherePrim, radius);
+    success &= PrimitiveSample::createScreenQuad(screenQuadPrim, true);
+    success &= PrimitiveSample::createScreenQuad(brightQuadPrim, false, 0.8f);
 
     return success;
 }
@@ -631,6 +502,12 @@ void Graphics::endEvent()
 }
 
 void Graphics::renderScene() {
+    for (auto& u : units)
+        u->preparForRender(inst);
+
+    for (auto& u : units)
+        u->render(inst);
+
     // Render sphere grid
     PBRConstantBuffer pbrCB;
     ZeroMemory(&pbrCB, sizeof(PBRConstantBuffer));
@@ -674,16 +551,6 @@ void Graphics::renderScene() {
             spherePrim->render(pbrShader);
         }
     }
-    endEvent();
-
-    // render skybox
-    startEvent(L"DrawSkybox");
-    SimpleConstantBuffer simpleCB;
-    simpleCB.mWorld = XMMatrixTranspose(XMMatrixTranslation(pos[0], pos[1], pos[2]));
-    simpleCB.mView = XMMatrixTranspose(camera.view());
-    simpleCB.mProjection = XMMatrixTranspose(camera.projection());
-    simpleCbuf->update(simpleCB);
-    skyboxPrim->render(skyboxShader, skyboxSamplerState, skyboxSRV);
     endEvent();
 }
 
@@ -811,7 +678,6 @@ float Graphics::calcMeanBrightness(ID3D11Texture2D* brightnessPixelTex2D) {
     return std::exp(arr[0]) - 1.0f;
 }
 
-
 void Graphics::render() {
     moveCamera();
     renderGUI();
@@ -881,7 +747,6 @@ void Graphics::cleanup() {
 
     if (swapChainRTV) swapChainRTV->Release();
     if (baseTextureRTV) baseTextureRTV->Release();
-    if (skyboxSRV) skyboxSRV->Release();
     if (baseSRV) baseSRV->Release();
 
     //simpleShader->cleanup();
@@ -897,7 +762,6 @@ void Graphics::cleanup() {
     tonemapCbuf->cleanup();
 
     //quadPrim->cleanup();
-    skyboxPrim->cleanup();
     spherePrim->cleanup();
     screenQuadPrim->cleanup();
     brightQuadPrim->cleanup();
@@ -909,7 +773,6 @@ void Graphics::cleanup() {
     if (annotation) annotation->Release();
 
     if (samplerState) samplerState->Release();
-    if (skyboxSamplerState) skyboxSamplerState->Release();
 
     if (context) context->ClearState();
     if (context1) context1->Release();
@@ -972,6 +835,26 @@ HRESULT Graphics::resizeBackbuffer(UINT width, UINT height) {
     this->height = height;
     
     return S_OK;
+}
+
+std::shared_ptr<ConstBuffer<Graphics::SimpleConstantBuffer>> Graphics::getSimpleCbuf() const
+{
+    return simpleCbuf;
+}
+
+Camera& Graphics::getCamera()
+{
+    return camera;
+}
+
+ID3D11SamplerState* Graphics::getSamplerState() const
+{
+    return samplerState;
+}
+
+void Graphics::addUnit(std::shared_ptr<Unit> unit)
+{
+    units.push_back(unit);
 }
 
 void Graphics::setMoveRight(bool move) { moveRight = move; }

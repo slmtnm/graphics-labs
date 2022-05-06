@@ -133,6 +133,11 @@ void Shader::apply() const
     }
 }
 
+std::vector<Shader::ConstBufferData> const& Shader::getConstBuffers() const
+{
+    return constBuffers;
+}
+
 void Shader::cleanup()
 {
     if (_vertexShader)

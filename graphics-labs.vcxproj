@@ -163,14 +163,17 @@
     <ClCompile Include="imgui_widgets.cpp" />
     <ClCompile Include="main.cpp" />
     <ClCompile Include="primitive.cpp" />
+    <ClCompile Include="primitive_samples.cpp" />
     <ClCompile Include="Shader.cpp" />
     <ClCompile Include="spotlight.cpp" />
+    <ClCompile Include="unit_skybox.cpp" />
     <ClCompile Include="window.cpp" />
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="camera.h" />
     <ClInclude Include="const_buffer.h" />
     <ClInclude Include="graphics.h" />
+    <ClInclude Include="primitive_samples.h" />
     <ClInclude Include="imconfig.h" />
     <ClInclude Include="imgui.h" />
     <ClInclude Include="imgui_impl_dx11.h" />
@@ -182,6 +185,8 @@
     <ClInclude Include="spotlight.h" />
     <ClInclude Include="primitive.h" />
     <ClInclude Include="Shader.h" />
+    <ClInclude Include="unit.h" />
+    <ClInclude Include="unit_skybox.h" />
     <ClInclude Include="window.h" />
   </ItemGroup>
   <ItemGroup>

@@ -109,10 +109,10 @@ float G(float3 n, float3 v, float3 l)
     return Gv(n, v) * Gv(n, l);
 }
 
-float3 F(float3 h, float3 v)
+float3 F(float3 n, float3 v)
 {
     float3 F0met = float3(0.04f, 0.04f, 0.04f) * (1 - metalness) + F0 * metalness;
-    float3 Fval = F0met + (float3(1.0f, 1.0f, 1.0f) - F0met) * pow5(1 - dot(h, v));
+    float3 Fval = F0met + (float3(1.0f, 1.0f, 1.0f) - F0met) * pow5(1 - dot(n, v));
     return Fval;
 }
 
@@ -120,7 +120,7 @@ float3 fr(float3 albedo, float3 n, float3 v, float3 l)
 {
     float3 h = normalize((v + l) * 0.5f);
 
-    float3 Fval = F(h, v);
+    float3 Fval = F(n, v);
     float3 Dval = D(n, h);
     float3 Gval = G(n, v, l);
 
@@ -147,15 +147,15 @@ float4 PS(VS_OUTPUT input) : SV_Target
     // normal
     float3 n = normalize(input.Norm);
 
-    for (uint i = 0; i < 3; i++) {
+    for (uint i = 0; i < (DrawMask == 0 ? 3 : 1); i++) {
         // direction from point to light
         float3 l = normalize(LightPos[i].xyz - input.WorldPos);
         // light color
         float4 lightColor = LightColor[i] * LightIntensity[i];
         // result color
-        float3 color = fr(input.Color.rgb, n, v, l) * lightColor.rgb;
+        float3 color = fr(input.Color.rgb, n, v, l);
         if (DrawMask == 0)
-            color *= max(0, dot(l, n));
+            color *= lightColor.rgb * max(0, dot(l, n));
 
         resultColor += color;
     }

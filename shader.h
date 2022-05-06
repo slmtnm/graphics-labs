@@ -24,6 +24,7 @@ public:
 	ID3D11InputLayout* vertexLayout() const;
 
 	void cleanup();
+	std::vector<ConstBufferData> const& getConstBuffers() const;
 
 private:
 	Shader() = default;

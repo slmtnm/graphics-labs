@@ -15,12 +15,24 @@
 using namespace DirectX;
 
 class Primitive;
+class Unit;
 
 template<typename T>
 class ConstBuffer;
 
 class Graphics {
 public:
+    struct SimpleConstantBuffer
+    {
+        XMMATRIX mWorld;
+        XMMATRIX mView;
+        XMMATRIX mProjection;
+        XMFLOAT4 LightPos[4];
+        XMFLOAT4 LightDir[4];
+        float LightCutoff[4];
+        float LightIntensity[4]; // only first component is used
+    };
+
     // factory method
     static std::shared_ptr<Graphics> init(HWND hWnd);
     static std::shared_ptr<Graphics> get();
@@ -55,10 +67,16 @@ public:
     void increaseLightIntensity(int lightIndex);
     void decreaseLightIntensity(int lightIndex);
 
-private:
     void startEvent(LPCWSTR eventName);
     void endEvent();
 
+    std::shared_ptr<ConstBuffer<SimpleConstantBuffer>> getSimpleCbuf() const;
+    Camera& getCamera();
+    ID3D11SamplerState* getSamplerState() const;
+
+    void addUnit(std::shared_ptr<Unit>);
+
+private:
     void moveCamera();
     void renderScene();
     void renderGUI();
@@ -78,11 +96,6 @@ private:
 
     void setViewport(UINT width, UINT height);
     void setRenderTarget(ID3D11RenderTargetView* rtv, bool useDSV = true);
-
-    bool createQuad(std::shared_ptr<Primitive>& prim);
-    bool createScreenQuad(std::shared_ptr<Primitive> &prim, bool full, float val = 0.0f);
-    bool createSphere(std::shared_ptr<Primitive>& prim, float R, bool invDir = false);
-    bool createSkybox();
 
     static std::shared_ptr<Graphics> inst;
 
@@ -104,36 +117,8 @@ private:
     ID3D11ShaderResourceView* baseSRV = nullptr;
     ID3D11SamplerState* samplerState = nullptr;
 
-    ID3D11SamplerState* skyboxSamplerState = nullptr;
-    ID3D11ShaderResourceView* skyboxSRV = nullptr;
-
     //------------//
     ID3DUserDefinedAnnotation* annotation = nullptr;
-
-    struct SimpleVertex
-    {
-        XMFLOAT3 Pos;
-        XMFLOAT3 Norm;
-        XMFLOAT4 Color;
-    };
-
-    struct TextureVertex
-    {
-        XMFLOAT3 Pos;
-        XMFLOAT4 Color;
-        XMFLOAT2 Tex;
-    };
-
-    struct SimpleConstantBuffer
-    {
-        XMMATRIX mWorld;
-        XMMATRIX mView;
-        XMMATRIX mProjection;
-        XMFLOAT4 LightPos[4];
-        XMFLOAT4 LightDir[4];
-        float LightCutoff[4];
-        float LightIntensity[4]; // only first component is used
-    };
 
     struct PBRConstantBuffer
     {
@@ -177,17 +162,18 @@ private:
     //std::unique_ptr<Primitive> quadPrim;
     std::shared_ptr<Primitive> 
         screenQuadPrim, brightQuadPrim,
-        spherePrim, skyboxPrim;
+        spherePrim;
 
-    std::unique_ptr<ConstBuffer<SimpleConstantBuffer>> simpleCbuf;
+    std::shared_ptr<ConstBuffer<SimpleConstantBuffer>> simpleCbuf;
     std::unique_ptr<ConstBuffer<PBRConstantBuffer>> pbrCbuf;
     std::unique_ptr<ConstBuffer<MaterialConstantBuffer>> materialCbuf;
     std::unique_ptr<ConstBuffer<BrightnessConstantBuffer>> brightnessCbuf;
     std::unique_ptr<ConstBuffer<TonemapConstantBuffer>> tonemapCbuf;
 
     std::array<SpotLight, 3> spotLights;
-
     std::chrono::system_clock::time_point start;
+
+    std::vector<std::shared_ptr<Unit>> units;
 
     float prevMeanBrightness = -1.0f;
     float deltaTime;

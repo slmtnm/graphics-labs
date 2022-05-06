@@ -28,6 +28,9 @@
     <Filter Include="ImGUI">
       <UniqueIdentifier>{6c2eb52f-7e2c-415c-ac75-3a6001d68c3c}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Graphics\Units">
+      <UniqueIdentifier>{0eefa8d5-8371-4135-9660-07a043d5ce99}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="camera.cpp">
@@ -72,6 +75,12 @@
     </ClCompile>
     <ClCompile Include="imgui_widgets.cpp">
       <Filter>ImGUI</Filter>
+    </ClCompile>
+    <ClCompile Include="unit_skybox.cpp">
+      <Filter>Graphics\Units</Filter>
+    </ClCompile>
+    <ClCompile Include="primitive_samples.cpp">
+      <Filter>Graphics\Primitive</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>
@@ -119,6 +128,15 @@
     </ClInclude>
     <ClInclude Include="imconfig.h">
       <Filter>ImGUI</Filter>
+    </ClInclude>
+    <ClInclude Include="unit.h">
+      <Filter>Graphics\Units</Filter>
+    </ClInclude>
+    <ClInclude Include="unit_skybox.h">
+      <Filter>Graphics\Units</Filter>
+    </ClInclude>
+    <ClInclude Include="primitive_samples.h">
+      <Filter>Graphics\Primitive</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>
