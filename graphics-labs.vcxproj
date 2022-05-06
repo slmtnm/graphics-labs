@@ -130,7 +130,7 @@
       </ShaderType>
     </FxCompile>
     <PostBuildEvent>
-      <Command>for %%f in (lib, dds, fx) do xcopy /y $(ProjectDir)*.%%f $(OutDir)</Command>
+      <Command>for %%f in (lib, dds, fx, hdr) do xcopy /y $(ProjectDir)*.%%f $(OutDir)</Command>
     </PostBuildEvent>
   </ItemDefinitionGroup>
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
@@ -186,6 +186,7 @@
     <ClInclude Include="spotlight.h" />
     <ClInclude Include="primitive.h" />
     <ClInclude Include="Shader.h" />
+    <ClInclude Include="stb_image.h" />
     <ClInclude Include="unit.h" />
     <ClInclude Include="unit_skybox.h" />
     <ClInclude Include="unit_sphere_scene.h" />
@@ -205,6 +206,9 @@
     <FxCompile Include="skybox.fx">
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">yes</ExcludedFromBuild>
       <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Release|x64'">yes</ExcludedFromBuild>
+    </FxCompile>
+    <FxCompile Include="texture.fx">
+      <ExcludedFromBuild Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">yes</ExcludedFromBuild>
     </FxCompile>
     <FxCompile Include="tonemap.fx">
       <DeploymentContent Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">true</DeploymentContent>

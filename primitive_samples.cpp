@@ -6,13 +6,15 @@
 #include "primitive.h"
 
 
-bool PrimitiveSample::createSphere(std::shared_ptr<Primitive>& prim, float R, bool invDir)
+bool PrimitiveSample::createSphere(std::shared_ptr<Primitive>& prim, float R, bool invDir, bool needTex)
 {
     const int N = 50, M = 50;
     const float PI = 3.14159f;
 
     std::array<SimpleVertex, M * N> vertices;
-    std::array<UINT, (N * 2 + 1)* (M - 1)> indices;
+    // TODO NEED HUGE REFACTORING. CRINGE!!!
+    std::array<TextureNormVertex, M * N> tvertices;
+    std::array<UINT, (N * 2 + 1) * (M - 1)> indices;
 
     // vertices
     for (int idx = 0, i = 0; i < N; i++)
@@ -28,12 +30,25 @@ bool PrimitiveSample::createSphere(std::shared_ptr<Primitive>& prim, float R, bo
                 y = cosf(theta),
                 z = sinf(theta) * cosf(phi);
 
-            vertices[idx].Pos.x = x * R;
-            vertices[idx].Pos.y = y * R;
-            vertices[idx].Pos.z = z * R;
+            if (!needTex)
+            {
+                vertices[idx].Pos.x = x * R;
+                vertices[idx].Pos.y = y * R;
+                vertices[idx].Pos.z = z * R;
 
-            vertices[idx].Norm = XMFLOAT3(x, y, z);
-            vertices[idx].Color = XMFLOAT4(1.0f, 0, 0, 1.0f);
+                vertices[idx].Norm = XMFLOAT3(x, y, z);
+                vertices[idx].Color = XMFLOAT4(1.0f, 0, 0, 1.0f);
+            }
+            else
+            {
+                tvertices[idx].Pos.x = x * R;
+                tvertices[idx].Pos.y = y * R;
+                tvertices[idx].Pos.z = z * R;
+
+                tvertices[idx].Norm = XMFLOAT3(x, y, z);
+                tvertices[idx].Tex = XMFLOAT2(atan2(z, x) / (2 * PI), 1 - (asin(y) / PI - 0.5f));
+                tvertices[idx].Color = XMFLOAT4(1.0f, 0, 0, 1.0f);
+            }
         }
     }
 
@@ -48,7 +63,11 @@ bool PrimitiveSample::createSphere(std::shared_ptr<Primitive>& prim, float R, bo
         indices[(i + 1) * (N * 2 + 1) - 1] = -1;
     }
 
-    prim = PrimitiveFactory::create<SimpleVertex>(vertices, indices, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+    if (!needTex)
+        prim = PrimitiveFactory::create<SimpleVertex>(vertices, indices, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+    else
+        prim = PrimitiveFactory::create<TextureNormVertex>(tvertices, indices, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+
     if (!prim)
         return false;
     return true;

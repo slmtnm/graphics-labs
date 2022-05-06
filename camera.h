@@ -13,7 +13,7 @@ class Camera {
 	XMVECTOR position;
 	XMVECTOR direction;
 
-	const float fov = XM_PIDIV4;
+	const float fov = XM_PIDIV2;
 	const float nearZ = 0.01f;
 	const float farZ = 10000.f;
 	float aspectRatio = 1;

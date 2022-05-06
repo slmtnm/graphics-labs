@@ -89,19 +89,21 @@ public:
     void addUnit(std::shared_ptr<Unit>);
 
 private:
-    void moveCamera();
     void renderScene();
+    void moveCamera();
     void renderGUI();
 
     bool evalMeanBrightnessTex(ID3D11ShaderResourceView*& srv, ID3D11Texture2D*& tex);
     float calcMeanBrightness(ID3D11Texture2D* brightnessPixelTex2D);
+
+    bool makeIrradianceMap();
 
     bool createDepthStencil(UINT width, UINT height);
 
     bool createRenderTargetTexture(UINT width, UINT height, 
         ID3D11RenderTargetView*& rtv, ID3D11ShaderResourceView*& srv,
         ID3D11SamplerState*& samplerState, 
-        DXGI_FORMAT format, bool createSamplerState = false,
+        DXGI_FORMAT format, bool isCubic, bool createSamplerState = false,
         ID3D11Texture2D **tex = nullptr);
 
     bool createCPUAccessedTexture(ID3D11Texture2D*& dst, ID3D11Texture2D* src);
@@ -127,6 +129,9 @@ private:
     ID3D11RenderTargetView* swapChainRTV = nullptr;
     ID3D11RenderTargetView* baseTextureRTV = nullptr;
     ID3D11ShaderResourceView* baseSRV = nullptr;
+    ID3D11ShaderResourceView* skySphereSRV = nullptr;
+
+
     ID3D11SamplerState* samplerState = nullptr;
 
     //------------//
@@ -160,10 +165,10 @@ private:
 
     Camera camera;
 
-    std::shared_ptr<Shader> pbrShader, brightShader, tonemapShader;
+    std::shared_ptr<Shader> pbrShader, brightShader, tonemapShader, texShader;
     //std::unique_ptr<Primitive> quadPrim;
     std::shared_ptr<Primitive> 
-        screenQuadPrim, brightQuadPrim;
+        screenQuadPrim, brightQuadPrim, skySpherePrim;
 
     std::shared_ptr<ConstBuffer<SimpleConstantBuffer>> simpleCbuf;
     std::shared_ptr<ConstBuffer<MaterialConstantBuffer>> materialCbuf;

@@ -144,6 +144,9 @@
     <ClInclude Include="unit_sphere_scene.h">
       <Filter>Graphics\Units</Filter>
     </ClInclude>
+    <ClInclude Include="stb_image.h">
+      <Filter>Graphics</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="simple.fx">
@@ -159,6 +162,9 @@
       <Filter>Shader</Filter>
     </FxCompile>
     <FxCompile Include="skybox.fx">
+      <Filter>Shader</Filter>
+    </FxCompile>
+    <FxCompile Include="texture.fx">
       <Filter>Shader</Filter>
     </FxCompile>
   </ItemGroup>

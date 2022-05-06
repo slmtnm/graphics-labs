@@ -1,5 +1,5 @@
 SamplerState ObjSamplerState;
-TextureCube SkyMap;
+Texture2D Texture;
 
 cbuffer SimpleConstantBuffer : register(b0)
 {
@@ -12,6 +12,7 @@ struct VS_INPUT
 {
     float3 Pos : POSITION;
     float3 Norm : NORMAL;
+    float2 Tex : TEXCOORD0;
     float4 Color : COLOR0;
 };
 
@@ -19,7 +20,7 @@ struct VS_INPUT
 struct VS_OUTPUT    //output structure for skymap vertex shader
 {
     float4 Pos : SV_POSITION;
-    float3 texCoord : TEXCOORD;
+    float2 Tex : TEXCOORD;
 };
 
 
@@ -29,9 +30,9 @@ VS_OUTPUT VS(VS_INPUT input)
 
     output.Pos = mul(float4(input.Pos, 1.0f), World);
     output.Pos = mul(output.Pos, View);
-    output.Pos = mul(output.Pos, Projection).xyzw;
+    output.Pos = mul(output.Pos, Projection);
 
-    output.texCoord = input.Pos;
+    output.Tex = input.Tex;
 
     return output;
 }
@@ -39,5 +40,5 @@ VS_OUTPUT VS(VS_INPUT input)
 
 float4 PS(VS_OUTPUT input) : SV_Target
 {
-    return SkyMap.Sample(ObjSamplerState, input.texCoord);
+    return Texture.Sample(ObjSamplerState, input.Tex);
 }

@@ -23,6 +23,7 @@ bool UnitSkybox::init(std::shared_ptr<Graphics> graphics)
     if (FAILED(hr))
         return false;
 
+
     if (skyboxTex)
         skyboxTex->Release();
 

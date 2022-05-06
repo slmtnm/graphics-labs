@@ -21,6 +21,9 @@
 #include "primitive_samples.h"
 #include "unit.h"
 
+#define STB_IMAGE_IMPLEMENTATION
+#include "stb_image.h"
+
 #pragma comment(lib, "DirectXTK.lib")
 
 
@@ -161,7 +164,7 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
     graphics->initShaders();
     
     if (!graphics->createRenderTargetTexture(
-        width, height, inst->baseTextureRTV, inst->baseSRV, inst->samplerState, DXGI_FORMAT_R32G32B32A32_FLOAT, true))
+        width, height, inst->baseTextureRTV, inst->baseSRV, inst->samplerState, DXGI_FORMAT_R32G32B32A32_FLOAT, false, true))
         return nullptr; 
 
     // Create a render target view
@@ -343,7 +346,7 @@ bool Graphics::createRenderTargetTexture(
     UINT width, UINT height, ID3D11RenderTargetView*& rtv,
     ID3D11ShaderResourceView*& srv, 
     ID3D11SamplerState*& samplerState, 
-    DXGI_FORMAT format, bool createSamplerState,
+    DXGI_FORMAT format, bool isCubic, bool createSamplerState,
     ID3D11Texture2D** tex)
 {
     // Setup render target texture
@@ -352,13 +355,15 @@ bool Graphics::createRenderTargetTexture(
     td.Width = width;
     td.Height = height;
     td.MipLevels = 1;
-    td.ArraySize = 1;
+    td.ArraySize = isCubic ? 6 : 1;
     td.Format = format;
     td.SampleDesc.Count = 1;
     td.SampleDesc.Quality = 0;
     td.Usage = D3D11_USAGE_DEFAULT;
     td.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
     td.CPUAccessFlags = 0;
+    if (isCubic)
+        td.MiscFlags = D3D11_RESOURCE_MISC_TEXTURECUBE;
 
     ID3D11Texture2D* rndTargetTexWH = nullptr;
     auto hr = inst->device->CreateTexture2D(&td, NULL, &rndTargetTexWH);
@@ -399,7 +404,7 @@ bool Graphics::createRenderTargetTexture(
     // Setup the description of the shader resource view.
     D3D11_SHADER_RESOURCE_VIEW_DESC srvd;
     srvd.Format = td.Format;
-    srvd.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+    srvd.ViewDimension = isCubic ? D3D11_SRV_DIMENSION_TEXTURECUBE : D3D11_SRV_DIMENSION_TEXTURE2D;
     srvd.Texture2D.MostDetailedMip = 0;
     srvd.Texture2D.MipLevels = 1;
 
@@ -443,6 +448,8 @@ bool Graphics::initGeometry() {
     //success &= createQuad();
     success &= PrimitiveSample::createScreenQuad(screenQuadPrim, true);
     success &= PrimitiveSample::createScreenQuad(brightQuadPrim, false, 0.8f);
+
+    makeIrradianceMap();
 
     return success;
 }
@@ -515,6 +522,14 @@ void Graphics::renderScene() {
 
     pbrCbuf->update(pbrCB);
 
+    SimpleConstantBuffer simpleCB;
+    simpleCB.mWorld = XMMatrixTranspose(XMMatrixTranslation(pos[0], pos[1], pos[2]));
+    simpleCB.mView = XMMatrixTranspose(camera.view());
+    simpleCB.mProjection = XMMatrixTranspose(camera.projection());
+    simpleCbuf->update(simpleCB);
+
+    skySpherePrim->render(texShader, samplerState, skySphereSRV);
+
     for (auto& u : units)
         u->render(inst);
 }
@@ -565,7 +580,7 @@ bool Graphics::evalMeanBrightnessTex(ID3D11ShaderResourceView*&srv, ID3D11Textur
     startEvent(L"DrawScreenQuadEvalBrightness");
     if (!createRenderTargetTexture(
         width, height, rtv_bright, srv_bright, 
-        samplerState, DXGI_FORMAT_R32_FLOAT, false))
+        samplerState, DXGI_FORMAT_R32_FLOAT, false, false))
         return false;
 
     BrightnessConstantBuffer cb;
@@ -597,7 +612,7 @@ bool Graphics::evalMeanBrightnessTex(ID3D11ShaderResourceView*&srv, ID3D11Textur
         startEvent((std::wstring(L"DrawScreenQuad2^") + std::to_wstring(n)).c_str());
         if (!createRenderTargetTexture(
             two_pow_n, two_pow_n, rtv_2n, srv_2n, samplerState, 
-            DXGI_FORMAT_R32_FLOAT, false, cpuAccessFlag ? &tex_2n : nullptr))
+            DXGI_FORMAT_R32_FLOAT, false, false, cpuAccessFlag ? &tex_2n : nullptr))
             return false;
 
         setViewport(two_pow_n, two_pow_n);
@@ -643,7 +658,114 @@ float Graphics::calcMeanBrightness(ID3D11Texture2D* brightnessPixelTex2D) {
     return std::exp(arr[0]) - 1.0f;
 }
 
-void Graphics::render() {
+bool Graphics::makeIrradianceMap()
+{
+    int width, height, comps;
+    auto data = stbi_load("je_gray_park_4k.hdr", &width, &height, &comps, 0);
+
+    float* float_data = new float[width * height * 4];
+
+    if (comps == 3)
+        for (int i = 0; i < width * height; i++)
+        {
+            float_data[i * 4 + 0] = data[i * 3 + 0] / 255.0f;
+            float_data[i * 4 + 1] = data[i * 3 + 1] / 255.0f;
+            float_data[i * 4 + 2] = data[i * 3 + 2] / 255.0f;
+            float_data[i * 4 + 3] = 1.0f;
+        }
+    else if (comps == 4)
+        for (int i = 0; i < width * height * 4; i++)
+            float_data[i] = data[i] / 255.0f;
+    else
+        assert(false); // not supported
+
+    D3D11_TEXTURE2D_DESC td;
+    ZeroMemory(&td, sizeof(td));
+    td.Width = width;
+    td.Height = height;
+    td.MipLevels = 1;
+    td.ArraySize = 1;
+    td.Format = DXGI_FORMAT_R32G32B32A32_FLOAT;
+    td.SampleDesc.Count = 1;
+    td.SampleDesc.Quality = 0;
+    td.Usage = D3D11_USAGE_DEFAULT;
+    td.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+    td.CPUAccessFlags = 0;
+
+    D3D11_SUBRESOURCE_DATA sd;
+    ZeroMemory(&sd, sizeof(D3D11_SUBRESOURCE_DATA));
+
+    sd.pSysMem = float_data;
+    sd.SysMemPitch = sizeof(float) * width * 4;
+
+    ID3D11Texture2D* irradianceTex = nullptr;
+    auto hr = inst->device->CreateTexture2D(&td, &sd, &irradianceTex);
+    if (FAILED(hr))
+    {
+        delete[] float_data;
+        stbi_image_free(data);
+        return false;
+    }
+
+    // Setup the description of the shader resource view.
+    D3D11_SHADER_RESOURCE_VIEW_DESC srvd;
+    srvd.Format = td.Format;
+    srvd.ViewDimension = D3D11_SRV_DIMENSION_TEXTURE2D;
+    srvd.Texture2D.MostDetailedMip = 0;
+    srvd.Texture2D.MipLevels = 1;
+
+    // Create the shader resource view.
+    hr = inst->device->CreateShaderResourceView(irradianceTex, &srvd, &skySphereSRV);
+
+    if (FAILED(hr))
+    {
+        delete[] float_data;
+        stbi_image_free(data);
+        return false;
+    }
+
+    delete[] float_data;
+    stbi_image_free(data);
+
+    // TODO release
+    irradianceTex->Release();
+
+    // Define the input layout
+    D3D11_INPUT_ELEMENT_DESC texLayout[] =
+    {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 32, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+    };
+
+    texShader = ShaderFactory::makeShaders(L"texture.fx", texLayout, 4);
+    texShader->addConstBuffers(
+        {
+            { simpleCbuf->appliedConstBuffer(), true, false }
+        });
+
+    if (!PrimitiveSample::createSphere(skySpherePrim, 500.0f, true, true))
+    {
+        delete[] float_data;
+        stbi_image_free(data);
+        return false;
+    }
+
+    // Create cubemap texture
+    /*const UINT cubemapTexWidth = 512;
+    ID3D11RenderTargetView *cubertv = nullptr;
+    ID3D11ShaderResourceView* cubesrv = nullptr;
+
+    if (!createRenderTargetTexture(cubemapTexWidth, cubemapTexWidth, cubertv, cubesrv, samplerState, DXGI_FORMAT_R32G32B32A32_FLOAT, true))
+        return false;
+    */
+
+    return true;
+}
+
+void Graphics::render()
+{
     moveCamera();
     renderGUI();
 
