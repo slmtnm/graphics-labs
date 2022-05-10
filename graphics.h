@@ -4,6 +4,7 @@
 #include <array>
 #include <vector>
 #include <chrono>
+#include <string>
 #include <d3d11_1.h>
 #include <directxmath.h>
 
@@ -87,6 +88,7 @@ public:
     ID3D11SamplerState* getSamplerState() const;
 
     void addUnit(std::shared_ptr<Unit>);
+    bool makeSRVFromFile(std::string const &texFileName, ID3D11ShaderResourceView *&srv);
 
 private:
     void renderScene();
@@ -96,12 +98,13 @@ private:
     bool evalMeanBrightnessTex(ID3D11ShaderResourceView*& srv, ID3D11Texture2D*& tex);
     float calcMeanBrightness(ID3D11Texture2D* brightnessPixelTex2D);
 
-    bool makeIrradianceMap();
+    bool initIrradianceMap();
+    void buildIrradianceMap();
 
     bool createDepthStencil(UINT width, UINT height);
 
     bool createRenderTargetTexture(UINT width, UINT height, 
-        ID3D11RenderTargetView*& rtv, ID3D11ShaderResourceView*& srv,
+        ID3D11RenderTargetView** rtv, ID3D11ShaderResourceView*& srv,
         ID3D11SamplerState*& samplerState, 
         DXGI_FORMAT format, bool isCubic, bool createSamplerState = false,
         ID3D11Texture2D **tex = nullptr);
@@ -128,8 +131,11 @@ private:
 
     ID3D11RenderTargetView* swapChainRTV = nullptr;
     ID3D11RenderTargetView* baseTextureRTV = nullptr;
+    std::array<ID3D11RenderTargetView*, 6> cubeRTV;
+
     ID3D11ShaderResourceView* baseSRV = nullptr;
-    ID3D11ShaderResourceView* skySphereSRV = nullptr;
+    ID3D11ShaderResourceView* skySphereSRV = nullptr;    
+    ID3D11ShaderResourceView* cubeSRV = nullptr;
 
 
     ID3D11SamplerState* samplerState = nullptr;
@@ -163,18 +169,29 @@ private:
         float _dummy[3];
     };
 
+    struct ScreenSpaceConstantBuffer
+    {
+        int isScreenSpace;
+        int _dummy[3];
+    };
+
     Camera camera;
 
-    std::shared_ptr<Shader> pbrShader, brightShader, tonemapShader, texShader;
+    std::shared_ptr<Shader> 
+        pbrShader, brightShader,
+        tonemapShader, texShader,
+        cylinder2cubemapShader;
     //std::unique_ptr<Primitive> quadPrim;
     std::shared_ptr<Primitive> 
         screenQuadPrim, brightQuadPrim, skySpherePrim;
+    std::array<std::shared_ptr<Primitive>, 6> cubemapPrim;
 
     std::shared_ptr<ConstBuffer<SimpleConstantBuffer>> simpleCbuf;
     std::shared_ptr<ConstBuffer<MaterialConstantBuffer>> materialCbuf;
     std::unique_ptr<ConstBuffer<PBRConstantBuffer>> pbrCbuf;
     std::unique_ptr<ConstBuffer<BrightnessConstantBuffer>> brightnessCbuf;
     std::unique_ptr<ConstBuffer<TonemapConstantBuffer>> tonemapCbuf;
+    std::unique_ptr<ConstBuffer<ScreenSpaceConstantBuffer>> screenSpaceCbuf;
 
     std::array<SpotLight, 3> spotLights;
     std::chrono::system_clock::time_point start;
@@ -199,6 +216,9 @@ private:
     
     // mouse sensitivity
     const float sensitivity = 0.1f;
+
+    // sky cubemap tex width
+    const UINT cubemapTexWidth = 512;
 
     // last frame timestamp
     DWORD lastFrame = timeGetTime();

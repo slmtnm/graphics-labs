@@ -1,6 +1,6 @@
 #include "camera.h"
 
-Camera::Camera() : position({ 0.f, 0.f, -50.f, 0.f }), direction({ 0.f, 0.f, 1.f, 0.f }) {
+Camera::Camera(XMVECTOR const& position) : position(position), direction({ 0.f, 0.f, 1.f, 0.f }) {
     updateViewMatrix();
     updateProjectionMatrix();
 }
@@ -8,6 +8,11 @@ Camera::Camera() : position({ 0.f, 0.f, -50.f, 0.f }), direction({ 0.f, 0.f, 1.f
 void Camera::updateViewMatrix() {
     updateDirection();
     viewMatrix = XMMatrixLookAtLH(position, XMVectorAdd(position, direction), { 0.f, 1.f, 0.f, 0.f });
+}
+
+void Camera::updateViewMatrix(XMVECTOR const& direction, XMVECTOR const& right) {
+    this->direction = direction;
+    viewMatrix = XMMatrixLookAtLH(position, XMVectorAdd(position, direction), XMVector3Cross(right, direction));
 }
 
 void Camera::updateProjectionMatrix() {

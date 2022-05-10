@@ -167,5 +167,8 @@
     <FxCompile Include="texture.fx">
       <Filter>Shader</Filter>
     </FxCompile>
+    <FxCompile Include="cylinder2cubemap.fx">
+      <Filter>Shader</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

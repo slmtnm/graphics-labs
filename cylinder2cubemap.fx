@@ -8,15 +8,12 @@ cbuffer SimpleConstantBuffer : register(b0)
     matrix Projection;
 };
 
-cbuffer ScreenSpaceConstantBuffer : register(b1)
-{
-    int isScreenSpace;
-}
-
 struct VS_INPUT
 {
     float3 Pos : POSITION;
-    float2 Tex : TEXCOORD0;
+    float3 Norm : NORMAL;
+    float4 Color : COLOR0;
+    //float2 Tex : TEXCOORD0;
 };
 
 
@@ -31,16 +28,11 @@ VS_OUTPUT VS(VS_INPUT input)
 {
     VS_OUTPUT output = (VS_OUTPUT)0;
 
-    if (!isScreenSpace)
-    {
-        output.Pos = mul(float4(input.Pos, 1.0f), World);
-        output.Pos = mul(output.Pos, View);
-        output.Pos = mul(output.Pos, Projection);
-    }
-    else
-        output.Pos = float4(input.Pos, 1.0f);
+    output.Pos = mul(float4(input.Pos, 1.0f), World);
+    output.Pos = mul(output.Pos, View);
+    output.Pos = mul(output.Pos, Projection);
 
-    output.Tex = input.Tex;
+    //output.Tex = input.Tex;
 
     return output;
 }
@@ -48,5 +40,5 @@ VS_OUTPUT VS(VS_INPUT input)
 
 float4 PS(VS_OUTPUT input) : SV_Target
 {
-    return Texture.Sample(ObjSamplerState, input.Tex);
+    return float4(1, 0, 0, 1); // Texture.Sample(ObjSamplerState, input.Tex);
 }

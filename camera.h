@@ -9,26 +9,10 @@
 
 using namespace DirectX;
 
-class Camera {
-	XMVECTOR position;
-	XMVECTOR direction;
-
-	const float fov = XM_PIDIV2;
-	const float nearZ = 0.01f;
-	const float farZ = 10000.f;
-	float aspectRatio = 1;
-
-	XMMATRIX viewMatrix;
-	XMMATRIX projectionMatrix;
-
-	void updateViewMatrix();
-	void updateProjectionMatrix();
-	void updateDirection();
-
-	float yaw = 90.0f;
-	float pitch = 0.0f;
+class Camera
+{
 public:
-	Camera();
+	Camera(XMVECTOR const& position = {0.0f, 0.0f, -50.0f});
 
 	XMMATRIX view() const;
 	XMMATRIX projection() const;
@@ -41,5 +25,26 @@ public:
 	void setAspectRatio(const float aspectRatio);
 	void move(XMVECTOR delta);
 	void rotate(float dx, float dy);
+
+	void updateViewMatrix(XMVECTOR const& direction, XMVECTOR const& right);
+
+private:
+	void updateViewMatrix();
+	void updateProjectionMatrix();
+	void updateDirection();
+
+	XMVECTOR position;
+	XMVECTOR direction;
+
+	const float fov = XM_PIDIV2;
+	const float nearZ = 0.01f;
+	const float farZ = 10000.f;
+	float aspectRatio = 1;
+
+	XMMATRIX viewMatrix;
+	XMMATRIX projectionMatrix;
+
+	float yaw = 90.0f;
+	float pitch = 0.0f;
 };
 

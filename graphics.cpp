@@ -164,7 +164,7 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
     graphics->initShaders();
     
     if (!graphics->createRenderTargetTexture(
-        width, height, inst->baseTextureRTV, inst->baseSRV, inst->samplerState, DXGI_FORMAT_R32G32B32A32_FLOAT, false, true))
+        width, height, &inst->baseTextureRTV, inst->baseSRV, inst->samplerState, DXGI_FORMAT_R32G32B32A32_FLOAT, false, true))
         return nullptr; 
 
     // Create a render target view
@@ -274,14 +274,13 @@ bool Graphics::createDepthStencil(UINT width, UINT height)
 
 void Graphics::initShaders()
 {
-    auto graphics = inst; // alias
-
     // Create constant buffers
-    graphics->simpleCbuf = std::make_unique<ConstBuffer<SimpleConstantBuffer>>();
-    graphics->pbrCbuf = std::make_unique<ConstBuffer<PBRConstantBuffer>>();
-    graphics->materialCbuf = std::make_unique<ConstBuffer<MaterialConstantBuffer>>();
-    graphics->brightnessCbuf = std::make_unique<ConstBuffer<BrightnessConstantBuffer>>();
-    graphics->tonemapCbuf = std::make_unique<ConstBuffer<TonemapConstantBuffer>>();
+    simpleCbuf = std::make_unique<ConstBuffer<SimpleConstantBuffer>>();
+    pbrCbuf = std::make_unique<ConstBuffer<PBRConstantBuffer>>();
+    materialCbuf = std::make_unique<ConstBuffer<MaterialConstantBuffer>>();
+    brightnessCbuf = std::make_unique<ConstBuffer<BrightnessConstantBuffer>>();
+    tonemapCbuf = std::make_unique<ConstBuffer<TonemapConstantBuffer>>();
+    screenSpaceCbuf = std::make_unique<ConstBuffer<ScreenSpaceConstantBuffer>>();
 
     // Define the input layout
     D3D11_INPUT_ELEMENT_DESC simpleLayout[] =
@@ -294,25 +293,24 @@ void Graphics::initShaders()
     /*graphics->simpleShader = ShaderFactory::makeShaders(L"simple.fx", simpleLayout, 3);
     graphics->simpleShader->addConstBuffers({ { graphics->simpleCbuf->appliedConstBuffer(), true, true } });*/
 
-    graphics->pbrShader = ShaderFactory::makeShaders(L"pbr.fx", simpleLayout, 3);
-    graphics->pbrShader->addConstBuffers(
+    pbrShader = ShaderFactory::makeShaders(L"pbr.fx", simpleLayout, 3);
+    pbrShader->addConstBuffers(
         { 
-            { graphics->pbrCbuf->appliedConstBuffer(), true, true },
-            { graphics->materialCbuf->appliedConstBuffer(), true, true }
+            { pbrCbuf->appliedConstBuffer(), true, true },
+            { materialCbuf->appliedConstBuffer(), true, true }
         });
 
     D3D11_INPUT_ELEMENT_DESC brightLayout[] =
     {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 28, D3D11_INPUT_PER_VERTEX_DATA, 0 }
+        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 }
     };
 
-    graphics->brightShader = ShaderFactory::makeShaders(L"brightness.fx", brightLayout, 3);
-    graphics->brightShader->addConstBuffers({ { graphics->brightnessCbuf->appliedConstBuffer(), false, true } });
+    brightShader = ShaderFactory::makeShaders(L"brightness.fx", brightLayout, 2);
+    brightShader->addConstBuffers({ { brightnessCbuf->appliedConstBuffer(), false, true } });
 
-    graphics->tonemapShader = ShaderFactory::makeShaders(L"tonemap.fx", brightLayout, 3);
-    graphics->tonemapShader->addConstBuffers({ { graphics->tonemapCbuf->appliedConstBuffer(), false, true } });
+    tonemapShader = ShaderFactory::makeShaders(L"tonemap.fx", brightLayout, 2);
+    tonemapShader->addConstBuffers({ { tonemapCbuf->appliedConstBuffer(), false, true } });
 
 }
 
@@ -343,7 +341,7 @@ void Graphics::setViewport(UINT width, UINT height)
 }
 
 bool Graphics::createRenderTargetTexture(
-    UINT width, UINT height, ID3D11RenderTargetView*& rtv,
+    UINT width, UINT height, ID3D11RenderTargetView** rtv,
     ID3D11ShaderResourceView*& srv, 
     ID3D11SamplerState*& samplerState, 
     DXGI_FORMAT format, bool isCubic, bool createSamplerState,
@@ -376,13 +374,32 @@ bool Graphics::createRenderTargetTexture(
     // Setup the description of the render target view.
     D3D11_RENDER_TARGET_VIEW_DESC rtvd;
 
+    ZeroMemory(&rtvd, sizeof(D3D11_RENDER_TARGET_VIEW_DESC));
     rtvd.Format = td.Format;
-    rtvd.ViewDimension = D3D11_RTV_DIMENSION_TEXTURE2D;
-    rtvd.Texture2D.MipSlice = 0;
+    rtvd.ViewDimension = isCubic ? D3D11_RTV_DIMENSION_TEXTURE2DARRAY : D3D11_RTV_DIMENSION_TEXTURE2D;
+    if (isCubic)
+        rtvd.Texture2DArray.ArraySize = 1;
+    else
+        rtvd.Texture2D.MipSlice = 0;
 
-    hr = inst->device->CreateRenderTargetView(rndTargetTexWH, &rtvd, &rtv);
-    if (FAILED(hr))
-        return false;
+    if (!isCubic)
+    {
+        hr = inst->device->CreateRenderTargetView(rndTargetTexWH, &rtvd, rtv);
+        if (FAILED(hr))
+            return false;
+    }
+    else
+        for (UINT i = 0; i < 6; i++)
+        {
+            // Change slot RTV desc to choose correct slice from array
+            rtvd.Texture2DArray.FirstArraySlice = D3D11CalcSubresource(0, i, 1);
+
+            // Create the RTV for the slot in m_renderSlotsTexArray
+            hr = device->CreateRenderTargetView(rndTargetTexWH, &rtvd, &rtv[i]);
+
+            if (FAILED(hr))
+                return false;
+        }
 
     if (createSamplerState)
     {
@@ -449,7 +466,7 @@ bool Graphics::initGeometry() {
     success &= PrimitiveSample::createScreenQuad(screenQuadPrim, true);
     success &= PrimitiveSample::createScreenQuad(brightQuadPrim, false, 0.8f);
 
-    makeIrradianceMap();
+    initIrradianceMap();
 
     return success;
 }
@@ -522,14 +539,6 @@ void Graphics::renderScene() {
 
     pbrCbuf->update(pbrCB);
 
-    SimpleConstantBuffer simpleCB;
-    simpleCB.mWorld = XMMatrixTranspose(XMMatrixTranslation(pos[0], pos[1], pos[2]));
-    simpleCB.mView = XMMatrixTranspose(camera.view());
-    simpleCB.mProjection = XMMatrixTranspose(camera.projection());
-    simpleCbuf->update(simpleCB);
-
-    skySpherePrim->render(texShader, samplerState, skySphereSRV);
-
     for (auto& u : units)
         u->render(inst);
 }
@@ -562,16 +571,13 @@ void Graphics::setRenderTarget(ID3D11RenderTargetView* rtv, bool useDSV)
 {
     float clearColor[] = { 0.3f, 0.5f, 0.7f, 1.0f };
     context->ClearRenderTargetView(rtv, clearColor);
-    context->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
+    if (useDSV)
+        context->ClearDepthStencilView(dsv, D3D11_CLEAR_DEPTH | D3D11_CLEAR_STENCIL, 1.0f, 0);
     context->OMSetRenderTargets(1, &rtv, useDSV ? inst->dsv : nullptr);
 }
 
 bool Graphics::evalMeanBrightnessTex(ID3D11ShaderResourceView*&srv, ID3D11Texture2D*& tex)
 {
-    setViewport(width, height);
-    setRenderTarget(baseTextureRTV);
-    renderScene();
-
     // eval brightness
     ID3D11RenderTargetView* rtv_bright = nullptr;
     ID3D11ShaderResourceView* srv_bright = nullptr;
@@ -579,7 +585,7 @@ bool Graphics::evalMeanBrightnessTex(ID3D11ShaderResourceView*&srv, ID3D11Textur
 
     startEvent(L"DrawScreenQuadEvalBrightness");
     if (!createRenderTargetTexture(
-        width, height, rtv_bright, srv_bright, 
+        width, height, &rtv_bright, srv_bright, 
         samplerState, DXGI_FORMAT_R32_FLOAT, false, false))
         return false;
 
@@ -611,7 +617,7 @@ bool Graphics::evalMeanBrightnessTex(ID3D11ShaderResourceView*&srv, ID3D11Textur
 
         startEvent((std::wstring(L"DrawScreenQuad2^") + std::to_wstring(n)).c_str());
         if (!createRenderTargetTexture(
-            two_pow_n, two_pow_n, rtv_2n, srv_2n, samplerState, 
+            two_pow_n, two_pow_n, &rtv_2n, srv_2n, samplerState, 
             DXGI_FORMAT_R32_FLOAT, false, false, cpuAccessFlag ? &tex_2n : nullptr))
             return false;
 
@@ -658,11 +664,10 @@ float Graphics::calcMeanBrightness(ID3D11Texture2D* brightnessPixelTex2D) {
     return std::exp(arr[0]) - 1.0f;
 }
 
-bool Graphics::makeIrradianceMap()
+bool Graphics::makeSRVFromFile(std::string const& texFileName, ID3D11ShaderResourceView*& srv)
 {
     int width, height, comps;
-    auto data = stbi_load("Desert_Highway/Road_to_MonumentValley_Ref.hdr", &width, &height, &comps, 0);
-    //auto data = stbi_load("je_gray_park_4k.hdr", &width, &height, &comps, 0);
+    auto data = stbi_load(texFileName.c_str(), &width, &height, &comps, 0);
 
     float* float_data = new float[width * height * 4];
 
@@ -690,7 +695,7 @@ bool Graphics::makeIrradianceMap()
     td.SampleDesc.Count = 1;
     td.SampleDesc.Quality = 0;
     td.Usage = D3D11_USAGE_DEFAULT;
-    td.BindFlags = D3D11_BIND_RENDER_TARGET | D3D11_BIND_SHADER_RESOURCE;
+    td.BindFlags = D3D11_BIND_SHADER_RESOURCE;
     td.CPUAccessFlags = 0;
 
     D3D11_SUBRESOURCE_DATA sd;
@@ -699,8 +704,8 @@ bool Graphics::makeIrradianceMap()
     sd.pSysMem = float_data;
     sd.SysMemPitch = sizeof(float) * width * 4;
 
-    ID3D11Texture2D* irradianceTex = nullptr;
-    auto hr = inst->device->CreateTexture2D(&td, &sd, &irradianceTex);
+    ID3D11Texture2D* tex = nullptr;
+    auto hr = inst->device->CreateTexture2D(&td, &sd, &tex);
     if (FAILED(hr))
     {
         delete[] float_data;
@@ -716,7 +721,8 @@ bool Graphics::makeIrradianceMap()
     srvd.Texture2D.MipLevels = 1;
 
     // Create the shader resource view.
-    hr = inst->device->CreateShaderResourceView(irradianceTex, &srvd, &skySphereSRV);
+    hr = inst->device->CreateShaderResourceView(tex, &srvd, &srv);
+    tex->Release();
 
     if (FAILED(hr))
     {
@@ -728,41 +734,154 @@ bool Graphics::makeIrradianceMap()
     delete[] float_data;
     stbi_image_free(data);
 
-    // TODO release
-    irradianceTex->Release();
+    return true;
+}
+
+bool Graphics::initIrradianceMap()
+{
+    D3D11_INPUT_ELEMENT_DESC simpleLayout[] =
+    {
+        { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
+        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+    };
+
+    cylinder2cubemapShader = ShaderFactory::makeShaders(L"cylinder2cubemap.fx", simpleLayout, 3);
+    cylinder2cubemapShader->addConstBuffers(
+        {
+            { simpleCbuf->appliedConstBuffer(), true, true }
+        });
+
+    //"je_gray_park_4k.hdr"
+    if (!makeSRVFromFile("Road_to_MonumentValley_Ref.hdr", skySphereSRV))
+        return false;
 
     // Define the input layout
     D3D11_INPUT_ELEMENT_DESC texLayout[] =
     {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "NORMAL", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0},
-        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 24, D3D11_INPUT_PER_VERTEX_DATA, 0},
-        { "COLOR", 0, DXGI_FORMAT_R32G32B32A32_FLOAT, 0, 32, D3D11_INPUT_PER_VERTEX_DATA, 0 },
+        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0}
     };
 
-    texShader = ShaderFactory::makeShaders(L"texture.fx", texLayout, 4);
+    texShader = ShaderFactory::makeShaders(L"texture.fx", texLayout, 2);
     texShader->addConstBuffers(
         {
-            { simpleCbuf->appliedConstBuffer(), true, false }
+            { simpleCbuf->appliedConstBuffer(), true, false },
+            { screenSpaceCbuf->appliedConstBuffer(), true, false }
         });
 
     if (!PrimitiveSample::createSphere(skySpherePrim, 500.0f, true, true))
-    {
-        delete[] float_data;
-        stbi_image_free(data);
         return false;
-    }
 
     // Create cubemap texture
-    /*const UINT cubemapTexWidth = 512;
-    ID3D11RenderTargetView *cubertv = nullptr;
-    ID3D11ShaderResourceView* cubesrv = nullptr;
-
-    if (!createRenderTargetTexture(cubemapTexWidth, cubemapTexWidth, cubertv, cubesrv, samplerState, DXGI_FORMAT_R32G32B32A32_FLOAT, true))
+    if (!createRenderTargetTexture(cubemapTexWidth, cubemapTexWidth, cubeRTV.data(), cubeSRV, samplerState, DXGI_FORMAT_R32G32B32A32_FLOAT, true))
         return false;
-    */
 
+    XMFLOAT3 quadPos[6][4] =
+    {
+        {XMFLOAT3(0.5, -0.5, -0.5), XMFLOAT3(0.5, 0.5, -0.5), XMFLOAT3(0.5, 0.5, 0.5), XMFLOAT3(0.5, -0.5, 0.5)},        // +x
+        {XMFLOAT3(-0.5, -0.5, -0.5), XMFLOAT3(-0.5, 0.5, -0.5), XMFLOAT3(-0.5, 0.5, 0.5), XMFLOAT3(-0.5, -0.5, 0.5)},    // -x
+        {XMFLOAT3(-0.5, 0.5, -0.5), XMFLOAT3(0.5, 0.5, -0.5), XMFLOAT3(0.5, 0.5, 0.5), XMFLOAT3(-0.5, 0.5, 0.5)},        // +y
+        {XMFLOAT3(-0.5, -0.5, -0.5), XMFLOAT3(0.5, -0.5, -0.5), XMFLOAT3(0.5, -0.5, 0.5), XMFLOAT3(-0.5, -0.5, 0.5)},    // -y
+        {XMFLOAT3(-0.5, 0.5, 0.5), XMFLOAT3(0.5, -0.5, 0.5), XMFLOAT3(0.5, 0.5, 0.5), XMFLOAT3(-0.5, 0.5, 0.5)},         // +z
+        {XMFLOAT3(-0.5, 0.5, -0.5), XMFLOAT3(0.5, -0.5, -0.5), XMFLOAT3(0.5, 0.5, -0.5), XMFLOAT3(-0.5, 0.5, -0.5)}      // -z
+    };
+
+    // fill tex coords
+    XMFLOAT2 quadTex[6][4];
+    for (size_t vertex = 0; vertex < 4; vertex++)
+    {
+        quadTex[0][vertex] = XMFLOAT2((quadPos[0][vertex].y + 1) * 0.5f, (quadPos[0][vertex].z + 1) * 0.5f);
+        quadTex[1][vertex] = XMFLOAT2((quadPos[0][vertex].y + 1) * 0.5f, (quadPos[0][vertex].z + 1) * 0.5f);
+    }
+
+    for (size_t vertex = 0; vertex < 4; vertex++)
+    {
+        quadTex[2][vertex] = XMFLOAT2((quadPos[0][vertex].x + 1) * 0.5f, (quadPos[0][vertex].z + 1) * 0.5f);
+        quadTex[3][vertex] = XMFLOAT2((quadPos[0][vertex].x + 1) * 0.5f, (quadPos[0][vertex].z + 1) * 0.5f);
+    }
+
+    for (size_t vertex = 0; vertex < 4; vertex++)
+    {
+        quadTex[4][vertex] = XMFLOAT2((quadPos[0][vertex].x + 1) * 0.5f, (quadPos[0][vertex].y + 1) * 0.5f);
+        quadTex[5][vertex] = XMFLOAT2((quadPos[0][vertex].x + 1) * 0.5f, (quadPos[0][vertex].y + 1) * 0.5f);
+    }
+
+    for (size_t quad = 0; quad < 6; quad++)
+    {
+        std::array<TextureVertex, 4> vertices;
+        std::generate(vertices.begin(), vertices.end(),
+            [vertex = 0, quadPos, quadTex, quad]() mutable {
+            return TextureVertex{ quadPos[quad][vertex], quadTex[quad][vertex++] };
+        });
+        if (!PrimitiveSample::createQuad(cubemapPrim[quad], vertices))
+            return false;
+    }
+    
     return true;
+}
+
+void Graphics::buildIrradianceMap()
+{
+    Camera skyCamera(camera.getPosition());
+    auto pos = skyCamera.getPosition().m128_f32;
+    SimpleConstantBuffer simpleCB;
+    simpleCB.mWorld = XMMatrixTranspose(XMMatrixTranslation(pos[0], pos[1], pos[2]));
+    simpleCB.mProjection = XMMatrixTranspose(camera.projection());
+
+    XMFLOAT3 direction[] =
+    {
+        XMFLOAT3(1, 0, 0),
+        XMFLOAT3(-1, 0, 0),
+        XMFLOAT3(0, 1, 0),
+        XMFLOAT3(0, -1, 0),
+        XMFLOAT3(0, 0, 1),
+        XMFLOAT3(0, 0, -1)
+    };
+
+    XMFLOAT3 right[] =
+    {
+        XMFLOAT3(0, 0, -1),
+        XMFLOAT3(0, 0, 1),
+        XMFLOAT3(1, 0, 0),
+        XMFLOAT3(1, 0, 0),
+        XMFLOAT3(1, 0, 0),
+        XMFLOAT3(-1, 0, 0)
+    };
+
+    ID3D11RenderTargetView* nullViews[] = { nullptr };
+    for (size_t i = 0; i < 6; i++)
+    {
+        // first just render skysphere
+        skyCamera.updateViewMatrix(XMLoadFloat3(&direction[i]), XMLoadFloat3(&right[i]));
+        simpleCB.mView = XMMatrixTranspose(skyCamera.view());
+        simpleCbuf->update(simpleCB);
+
+        startEvent((std::wstring(L"DrawSkySphere") + std::to_wstring(i)).c_str());
+        setViewport(width, height);
+        setRenderTarget(baseTextureRTV, true);
+        screenSpaceCbuf->update(ScreenSpaceConstantBuffer{ false });
+        skySpherePrim->render(texShader, samplerState, skySphereSRV);
+
+        ID3D11ShaderResourceView* null[] = { nullptr };
+
+        context->OMSetRenderTargets(1, &baseTextureRTV, nullptr);
+        context->PSSetShaderResources(0, 1, null);
+
+        endEvent();
+
+        // second, make shot in cubemap RTV
+        startEvent((std::wstring(L"ProjSkySphere2Cube") + std::to_wstring(i)).c_str());
+        setViewport(cubemapTexWidth, cubemapTexWidth);
+        setRenderTarget(cubeRTV[i], false);
+        screenSpaceCbuf->update(ScreenSpaceConstantBuffer{ true });
+        cubemapPrim[i]->render(texShader, samplerState, baseSRV);
+
+        context->OMSetRenderTargets(1, &cubeRTV[i], nullptr);
+        context->PSSetShaderResources(0, 1, null);
+
+        endEvent();
+    }
 }
 
 void Graphics::render()
@@ -772,6 +891,12 @@ void Graphics::render()
 
     if (DrawMask == 0)
     {
+        buildIrradianceMap();
+
+        setViewport(width, height);
+        setRenderTarget(baseTextureRTV);
+        renderScene();
+
         ID3D11ShaderResourceView* brightnessPixelSRV = nullptr;
         ID3D11Texture2D* brightnessPixelTex2D = nullptr;
 
@@ -838,7 +963,12 @@ void Graphics::cleanup() {
 
     if (swapChainRTV) swapChainRTV->Release();
     if (baseTextureRTV) baseTextureRTV->Release();
+    for (auto rtv : cubeRTV)
+        if (rtv) rtv->Release();
+
     if (baseSRV) baseSRV->Release();
+    if (skySphereSRV) skySphereSRV->Release();
+    if (cubeSRV) cubeSRV->Release();
 
     //simpleShader->cleanup();
     pbrShader->cleanup();
@@ -857,8 +987,10 @@ void Graphics::cleanup() {
     brightQuadPrim->cleanup();
     skySpherePrim->cleanup();
 
+    for (auto prim : cubemapPrim)
+        prim->cleanup();
+
     if (dsv) dsv->Release();
-    if (skySphereSRV) skySphereSRV->Release();
 
     if (swapChain1) swapChain1->Release();
     if (swapChain) swapChain->Release();
@@ -915,7 +1047,7 @@ HRESULT Graphics::resizeBackbuffer(UINT width, UINT height) {
     backBuffer->Release();
 
     if (!inst->createRenderTargetTexture(
-        width, height, baseTextureRTV, baseSRV, samplerState, DXGI_FORMAT_R32G32B32A32_FLOAT, false))
+        width, height, &baseTextureRTV, baseSRV, samplerState, DXGI_FORMAT_R32G32B32A32_FLOAT, false))
         return S_FALSE;
 
     if (!inst->createDepthStencil(width, height))

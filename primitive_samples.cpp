@@ -13,7 +13,7 @@ bool PrimitiveSample::createSphere(std::shared_ptr<Primitive>& prim, float R, bo
 
     std::array<SimpleVertex, M * N> vertices;
     // TODO NEED HUGE REFACTORING. CRINGE!!!
-    std::array<TextureNormVertex, M * N> tvertices;
+    std::array<TextureVertex, M * N> tvertices;
     std::array<UINT, (N * 2 + 1) * (M - 1)> indices;
 
     // vertices
@@ -45,9 +45,7 @@ bool PrimitiveSample::createSphere(std::shared_ptr<Primitive>& prim, float R, bo
                 tvertices[idx].Pos.y = y * R;
                 tvertices[idx].Pos.z = z * R;
 
-                tvertices[idx].Norm = XMFLOAT3(x, y, z);
                 tvertices[idx].Tex = XMFLOAT2(phi / (2 * PI), 1 - (asin(y) / PI - 0.5f));
-                tvertices[idx].Color = XMFLOAT4(1.0f, 0, 0, 1.0f);
             }
         }
     }
@@ -66,7 +64,7 @@ bool PrimitiveSample::createSphere(std::shared_ptr<Primitive>& prim, float R, bo
     if (!needTex)
         prim = PrimitiveFactory::create<SimpleVertex>(vertices, indices, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
     else
-        prim = PrimitiveFactory::create<TextureNormVertex>(tvertices, indices, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+        prim = PrimitiveFactory::create<TextureVertex>(tvertices, indices, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
     if (!prim)
         return false;
@@ -78,10 +76,10 @@ bool PrimitiveSample::createScreenQuad(std::shared_ptr<Primitive>& prim, bool fu
     // Create vertex buffer
     TextureVertex vertices[] =
     {
-        { XMFLOAT3(-1.0f, full ? -1.0f : val, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f), XMFLOAT2(0.0f, 1.0f)},
-        { XMFLOAT3(full ? 1.0f : -val, full ? -1.0f : val, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f), XMFLOAT2(1.0f, 1.0f)},
-        { XMFLOAT3(full ? 1.0f : -val, 1.0f, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f), XMFLOAT2(1.0f, 0.0f)},
-        { XMFLOAT3(-1.0f, 1.0f, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f), XMFLOAT2(0.0f, 0.0f)},
+        { XMFLOAT3(-1.0f, full ? -1.0f : val, 0.0f), XMFLOAT2(0.0f, 1.0f)},
+        { XMFLOAT3(full ? 1.0f : -val, full ? -1.0f : val, 0.0f), XMFLOAT2(1.0f, 1.0f)},
+        { XMFLOAT3(full ? 1.0f : -val, 1.0f, 0.0f), XMFLOAT2(1.0f, 0.0f)},
+        { XMFLOAT3(-1.0f, 1.0f, 0.0f), XMFLOAT2(0.0f, 0.0f)},
     };
 
     // Create index buffer
@@ -102,23 +100,13 @@ bool PrimitiveSample::createQuad(std::shared_ptr<Primitive>& prim)
 {
     // Create vertex buffer
     auto color = XMFLOAT4(1.0f, 0.0f, 0.0f, 1.0f);
-    SimpleVertex vertices[] =
+    std::array<SimpleVertex, 4> vertices =
     {
-        { XMFLOAT3(-5.0f, -5.0f, 10.0f), XMFLOAT3(0.0f, 0.0f, -1.0f), color},
-        { XMFLOAT3(5.0f, -5.0f, 10.0f), XMFLOAT3(0.0f, 0.0f, -1.0f), color},
-        { XMFLOAT3(5.0f, 5.0f, 10.0f), XMFLOAT3(0.0f, 0.0f, -1.0f), color},
-        { XMFLOAT3(-5.0f, 5.0f, 10.0f), XMFLOAT3(0.0f, 0.0f, -1.0f), color},
+        SimpleVertex{ XMFLOAT3(-5.0f, -5.0f, 10.0f), XMFLOAT3(0.0f, 0.0f, -1.0f), color},
+        SimpleVertex{ XMFLOAT3(5.0f, -5.0f, 10.0f), XMFLOAT3(0.0f, 0.0f, -1.0f), color},
+        SimpleVertex{ XMFLOAT3(5.0f, 5.0f, 10.0f), XMFLOAT3(0.0f, 0.0f, -1.0f), color},
+        SimpleVertex{ XMFLOAT3(-5.0f, 5.0f, 10.0f), XMFLOAT3(0.0f, 0.0f, -1.0f), color},
     };
 
-    // Create index buffer
-    UINT indices[] =
-    {
-        0, 2, 1,
-        2, 0, 3
-    };
-
-    prim = PrimitiveFactory::create<SimpleVertex>(vertices, 4, indices, 6);
-    if (!prim)
-        return false;
-    return true;
+    return createQuad(prim, vertices);
 }
