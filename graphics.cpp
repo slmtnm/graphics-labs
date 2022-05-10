@@ -783,36 +783,22 @@ bool Graphics::initIrradianceMap()
         {XMFLOAT3(-0.5, -0.5, -0.5), XMFLOAT3(-0.5, 0.5, -0.5), XMFLOAT3(-0.5, 0.5, 0.5), XMFLOAT3(-0.5, -0.5, 0.5)},    // -x
         {XMFLOAT3(-0.5, 0.5, -0.5), XMFLOAT3(0.5, 0.5, -0.5), XMFLOAT3(0.5, 0.5, 0.5), XMFLOAT3(-0.5, 0.5, 0.5)},        // +y
         {XMFLOAT3(-0.5, -0.5, -0.5), XMFLOAT3(0.5, -0.5, -0.5), XMFLOAT3(0.5, -0.5, 0.5), XMFLOAT3(-0.5, -0.5, 0.5)},    // -y
-        {XMFLOAT3(-0.5, 0.5, 0.5), XMFLOAT3(0.5, -0.5, 0.5), XMFLOAT3(0.5, 0.5, 0.5), XMFLOAT3(-0.5, 0.5, 0.5)},         // +z
-        {XMFLOAT3(-0.5, 0.5, -0.5), XMFLOAT3(0.5, -0.5, -0.5), XMFLOAT3(0.5, 0.5, -0.5), XMFLOAT3(-0.5, 0.5, -0.5)}      // -z
+        {XMFLOAT3(-0.5, -0.5, 0.5), XMFLOAT3(0.5, -0.5, 0.5), XMFLOAT3(0.5, 0.5, 0.5), XMFLOAT3(-0.5, 0.5, 0.5)},        // +z
+        {XMFLOAT3(-0.5, -0.5, -0.5), XMFLOAT3(0.5, -0.5, -0.5), XMFLOAT3(0.5, 0.5, -0.5), XMFLOAT3(-0.5, 0.5, -0.5)}     // -z
     };
 
     // fill tex coords
-    XMFLOAT2 quadTex[6][4];
-    for (size_t vertex = 0; vertex < 4; vertex++)
+    XMFLOAT2 quadTex[] =
     {
-        quadTex[0][vertex] = XMFLOAT2((quadPos[0][vertex].y + 1) * 0.5f, (quadPos[0][vertex].z + 1) * 0.5f);
-        quadTex[1][vertex] = XMFLOAT2((quadPos[0][vertex].y + 1) * 0.5f, (quadPos[0][vertex].z + 1) * 0.5f);
-    }
-
-    for (size_t vertex = 0; vertex < 4; vertex++)
-    {
-        quadTex[2][vertex] = XMFLOAT2((quadPos[0][vertex].x + 1) * 0.5f, (quadPos[0][vertex].z + 1) * 0.5f);
-        quadTex[3][vertex] = XMFLOAT2((quadPos[0][vertex].x + 1) * 0.5f, (quadPos[0][vertex].z + 1) * 0.5f);
-    }
-
-    for (size_t vertex = 0; vertex < 4; vertex++)
-    {
-        quadTex[4][vertex] = XMFLOAT2((quadPos[0][vertex].x + 1) * 0.5f, (quadPos[0][vertex].y + 1) * 0.5f);
-        quadTex[5][vertex] = XMFLOAT2((quadPos[0][vertex].x + 1) * 0.5f, (quadPos[0][vertex].y + 1) * 0.5f);
-    }
+        XMFLOAT2(0.25, 0.75), XMFLOAT2(0.75, 0.75), XMFLOAT2(0.75, 0.25), XMFLOAT2(0.25, 0.25)
+    };
 
     for (size_t quad = 0; quad < 6; quad++)
     {
         std::array<TextureVertex, 4> vertices;
         std::generate(vertices.begin(), vertices.end(),
             [vertex = 0, quadPos, quadTex, quad]() mutable {
-            return TextureVertex{ quadPos[quad][vertex], quadTex[quad][vertex++] };
+            return TextureVertex{ quadPos[quad][vertex], quadTex[vertex++] };
         });
         if (!PrimitiveSample::createQuad(cubemapPrim[quad], vertices))
             return false;
@@ -865,7 +851,6 @@ void Graphics::buildIrradianceMap()
 
         ID3D11ShaderResourceView* null[] = { nullptr };
 
-        context->OMSetRenderTargets(1, &baseTextureRTV, nullptr);
         context->PSSetShaderResources(0, 1, null);
 
         endEvent();
@@ -877,7 +862,6 @@ void Graphics::buildIrradianceMap()
         screenSpaceCbuf->update(ScreenSpaceConstantBuffer{ true });
         cubemapPrim[i]->render(texShader, samplerState, baseSRV);
 
-        context->OMSetRenderTargets(1, &cubeRTV[i], nullptr);
         context->PSSetShaderResources(0, 1, null);
 
         endEvent();
