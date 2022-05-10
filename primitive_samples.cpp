@@ -9,7 +9,7 @@
 bool PrimitiveSample::createSphere(std::shared_ptr<Primitive>& prim, float R, bool invDir, bool needTex)
 {
     const int N = 50, M = 50;
-    const float PI = 3.14159f;
+    const float PI = 3.14159265359f;
 
     std::array<SimpleVertex, M * N> vertices;
     // TODO NEED HUGE REFACTORING. CRINGE!!!
@@ -46,7 +46,7 @@ bool PrimitiveSample::createSphere(std::shared_ptr<Primitive>& prim, float R, bo
                 tvertices[idx].Pos.z = z * R;
 
                 tvertices[idx].Norm = XMFLOAT3(x, y, z);
-                tvertices[idx].Tex = XMFLOAT2(atan2(z, x) / (2 * PI), 1 - (asin(y) / PI - 0.5f));
+                tvertices[idx].Tex = XMFLOAT2(phi / (2 * PI), 1 - (asin(y) / PI - 0.5f));
                 tvertices[idx].Color = XMFLOAT4(1.0f, 0, 0, 1.0f);
             }
         }

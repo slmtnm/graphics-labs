@@ -661,7 +661,8 @@ float Graphics::calcMeanBrightness(ID3D11Texture2D* brightnessPixelTex2D) {
 bool Graphics::makeIrradianceMap()
 {
     int width, height, comps;
-    auto data = stbi_load("je_gray_park_4k.hdr", &width, &height, &comps, 0);
+    auto data = stbi_load("Desert_Highway/Road_to_MonumentValley_Ref.hdr", &width, &height, &comps, 0);
+    //auto data = stbi_load("je_gray_park_4k.hdr", &width, &height, &comps, 0);
 
     float* float_data = new float[width * height * 4];
 
@@ -843,6 +844,7 @@ void Graphics::cleanup() {
     pbrShader->cleanup();
     brightShader->cleanup();
     tonemapShader->cleanup();
+    texShader->cleanup();
 
     simpleCbuf->cleanup();
     pbrCbuf->cleanup();
@@ -853,8 +855,10 @@ void Graphics::cleanup() {
     //quadPrim->cleanup();
     screenQuadPrim->cleanup();
     brightQuadPrim->cleanup();
+    skySpherePrim->cleanup();
 
     if (dsv) dsv->Release();
+    if (skySphereSRV) skySphereSRV->Release();
 
     if (swapChain1) swapChain1->Release();
     if (swapChain) swapChain->Release();
