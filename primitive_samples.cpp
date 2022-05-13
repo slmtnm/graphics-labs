@@ -114,23 +114,29 @@ bool PrimitiveSample::createCube(std::shared_ptr<Primitive>& prim, bool invDir)
     // Create index buffer
     UINT indices[] =
     {
-        3,1,0,
-        2,1,3,
-
-        0,5,4,
-        1,5,0,
-
-        3,4,7,
-        0,4,3,
-
+        // +x
         1,6,5,
         2,6,1,
 
+        // -x
+        3,4,7,
+        0,4,3,
+
+        // +y
+        3,1,0,
+        2,1,3,
+
+        // -y
+        6,4,5,
+        7,4,6,
+
+        // +z
         2,7,6,
         3,7,2,
 
-        6,4,5,
-        7,4,6,
+        // -z
+        0,5,4,
+        1,5,0,
     };
 
     if (invDir)
