@@ -180,10 +180,11 @@ private:
     std::shared_ptr<Shader> 
         pbrShader, brightShader,
         tonemapShader, texShader,
-        cylinder2cubemapShader;
+        cylinder2cubemapShader,
+        skyboxShader;
     //std::unique_ptr<Primitive> quadPrim;
     std::shared_ptr<Primitive> 
-        screenQuadPrim, brightQuadPrim, skySpherePrim;
+        screenQuadPrim, brightQuadPrim, skySpherePrim, skyboxPrim;
     std::array<std::shared_ptr<Primitive>, 6> cubemapPrim;
 
     std::shared_ptr<ConstBuffer<SimpleConstantBuffer>> simpleCbuf;

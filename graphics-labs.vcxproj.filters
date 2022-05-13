@@ -85,6 +85,9 @@
     <ClCompile Include="unit_sphere_scene.cpp">
       <Filter>Graphics\Units</Filter>
     </ClCompile>
+    <ClCompile Include="unit_skysphere.cpp">
+      <Filter>Graphics\Units</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="camera.h">
@@ -146,6 +149,9 @@
     </ClInclude>
     <ClInclude Include="stb_image.h">
       <Filter>Graphics</Filter>
+    </ClInclude>
+    <ClInclude Include="unit_skysphere.h">
+      <Filter>Graphics\Units</Filter>
     </ClInclude>
   </ItemGroup>
   <ItemGroup>

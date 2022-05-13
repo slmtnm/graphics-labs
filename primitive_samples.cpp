@@ -96,6 +96,55 @@ bool PrimitiveSample::createScreenQuad(std::shared_ptr<Primitive>& prim, bool fu
 }
 
 
+bool PrimitiveSample::createCube(std::shared_ptr<Primitive>& prim, bool invDir)
+{
+    // Create vertex buffer
+    SimpleVertex vertices[] =
+    {
+        { XMFLOAT3(-1.0f, 1.0f, -1.0f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
+        { XMFLOAT3(1.0f, 1.0f, -1.0f), XMFLOAT3(1.0f, 0.0f, 1.0f) },
+        { XMFLOAT3(1.0f, 1.0f, 1.0f), XMFLOAT3(1.0f, 1.0f, 1.0f) },
+        { XMFLOAT3(-1.0f, 1.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
+        { XMFLOAT3(-1.0f, -1.0f, -1.0f), XMFLOAT3(0.0f, 1.0f, 1.0f) },
+        { XMFLOAT3(1.0f, -1.0f, -1.0f), XMFLOAT3(1.0f, 0.0f, 1.0f) },
+        { XMFLOAT3(1.0f, -1.0f, 1.0f), XMFLOAT3(1.0f, 1.0f, 1.0f) },
+        { XMFLOAT3(-1.0f, -1.0f, 1.0f), XMFLOAT3(0.0f, 0.0f, 1.0f) },
+    };
+
+    // Create index buffer
+    UINT indices[] =
+    {
+        3,1,0,
+        2,1,3,
+
+        0,5,4,
+        1,5,0,
+
+        3,4,7,
+        0,4,3,
+
+        1,6,5,
+        2,6,1,
+
+        2,7,6,
+        3,7,2,
+
+        6,4,5,
+        7,4,6,
+    };
+
+    if (invDir)
+        for (int i = 0; i < 36; i += 3)
+            std::swap(indices[i + 1], indices[i + 2]);
+        
+
+    prim = PrimitiveFactory::create<SimpleVertex>(vertices, 8, indices, 36);
+    if (!prim)
+        return false;
+    return true;
+}
+
+
 bool PrimitiveSample::createQuad(std::shared_ptr<Primitive>& prim)
 {
     // Create vertex buffer

@@ -38,7 +38,7 @@ VS_OUTPUT VS(VS_INPUT input)
         output.Pos = mul(output.Pos, Projection);
     }
     else
-        output.Pos = float4(input.Pos, 1.0f);
+        output.Pos = float4(input.Pos * 2, 1.0f);
 
     output.Tex = input.Tex;
 

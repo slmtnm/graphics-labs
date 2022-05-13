@@ -770,7 +770,16 @@ bool Graphics::initIrradianceMap()
             { screenSpaceCbuf->appliedConstBuffer(), true, false }
         });
 
+    skyboxShader = ShaderFactory::makeShaders(L"skybox.fx", simpleLayout, 3);
+    skyboxShader->addConstBuffers(
+        {
+            { simpleCbuf->appliedConstBuffer(), true, false}
+        });
+
     if (!PrimitiveSample::createSphere(skySpherePrim, 500.0f, true, true))
+        return false;
+
+    if (!PrimitiveSample::createCube(skyboxPrim, true))
         return false;
 
     // Create cubemap texture
@@ -779,18 +788,25 @@ bool Graphics::initIrradianceMap()
 
     XMFLOAT3 quadPos[6][4] =
     {
-        {XMFLOAT3(0.5, -0.5, -0.5), XMFLOAT3(0.5, 0.5, -0.5), XMFLOAT3(0.5, 0.5, 0.5), XMFLOAT3(0.5, -0.5, 0.5)},        // +x
-        {XMFLOAT3(-0.5, -0.5, -0.5), XMFLOAT3(-0.5, 0.5, -0.5), XMFLOAT3(-0.5, 0.5, 0.5), XMFLOAT3(-0.5, -0.5, 0.5)},    // -x
-        {XMFLOAT3(-0.5, 0.5, -0.5), XMFLOAT3(0.5, 0.5, -0.5), XMFLOAT3(0.5, 0.5, 0.5), XMFLOAT3(-0.5, 0.5, 0.5)},        // +y
-        {XMFLOAT3(-0.5, -0.5, -0.5), XMFLOAT3(0.5, -0.5, -0.5), XMFLOAT3(0.5, -0.5, 0.5), XMFLOAT3(-0.5, -0.5, 0.5)},    // -y
-        {XMFLOAT3(-0.5, -0.5, 0.5), XMFLOAT3(0.5, -0.5, 0.5), XMFLOAT3(0.5, 0.5, 0.5), XMFLOAT3(-0.5, 0.5, 0.5)},        // +z
-        {XMFLOAT3(-0.5, -0.5, -0.5), XMFLOAT3(0.5, -0.5, -0.5), XMFLOAT3(0.5, 0.5, -0.5), XMFLOAT3(-0.5, 0.5, -0.5)}     // -z
+        //{XMFLOAT3(0.5, -0.5, -0.5), XMFLOAT3(0.5, 0.5, -0.5), XMFLOAT3(0.5, 0.5, 0.5), XMFLOAT3(0.5, -0.5, 0.5)},        // +x
+        //{XMFLOAT3(-0.5, -0.5, -0.5), XMFLOAT3(-0.5, 0.5, -0.5), XMFLOAT3(-0.5, 0.5, 0.5), XMFLOAT3(-0.5, -0.5, 0.5)},    // -x
+        //{XMFLOAT3(-0.5, 0.5, -0.5), XMFLOAT3(0.5, 0.5, -0.5), XMFLOAT3(0.5, 0.5, 0.5), XMFLOAT3(-0.5, 0.5, 0.5)},        // +y
+        //{XMFLOAT3(-0.5, -0.5, -0.5), XMFLOAT3(0.5, -0.5, -0.5), XMFLOAT3(0.5, -0.5, 0.5), XMFLOAT3(-0.5, -0.5, 0.5)},    // -y
+        //{XMFLOAT3(-0.5, -0.5, 0.5), XMFLOAT3(0.5, -0.5, 0.5), XMFLOAT3(0.5, 0.5, 0.5), XMFLOAT3(-0.5, 0.5, 0.5)},        // +z
+        //{XMFLOAT3(0.5, -0.5, -0.5), XMFLOAT3(-0.5, -0.5, -0.5), XMFLOAT3(0.5, 0.5, -0.5), XMFLOAT3(-0.5, 0.5, -0.5)}     // -z
+        {XMFLOAT3(-0.5, -0.5, 0.5), XMFLOAT3(0.5, -0.5, 0.5), XMFLOAT3(0.5, 0.5, 0.5), XMFLOAT3(-0.5, 0.5, 0.5)},
+        {XMFLOAT3(-0.5, -0.5, 0.5), XMFLOAT3(0.5, -0.5, 0.5), XMFLOAT3(0.5, 0.5, 0.5), XMFLOAT3(-0.5, 0.5, 0.5)},
+        {XMFLOAT3(-0.5, -0.5, 0.5), XMFLOAT3(0.5, -0.5, 0.5), XMFLOAT3(0.5, 0.5, 0.5), XMFLOAT3(-0.5, 0.5, 0.5)},
+        {XMFLOAT3(-0.5, -0.5, 0.5), XMFLOAT3(0.5, -0.5, 0.5), XMFLOAT3(0.5, 0.5, 0.5), XMFLOAT3(-0.5, 0.5, 0.5)},
+        {XMFLOAT3(-0.5, -0.5, 0.5), XMFLOAT3(0.5, -0.5, 0.5), XMFLOAT3(0.5, 0.5, 0.5), XMFLOAT3(-0.5, 0.5, 0.5)},
+        {XMFLOAT3(-0.5, -0.5, 0.5), XMFLOAT3(0.5, -0.5, 0.5), XMFLOAT3(0.5, 0.5, 0.5), XMFLOAT3(-0.5, 0.5, 0.5)},
     };
 
     // fill tex coords
     XMFLOAT2 quadTex[] =
     {
-        XMFLOAT2(0.25, 0.75), XMFLOAT2(0.75, 0.75), XMFLOAT2(0.75, 0.25), XMFLOAT2(0.25, 0.25)
+        //XMFLOAT2(0.25, 0.75), XMFLOAT2(0.75, 0.75), XMFLOAT2(0.75, 0.25), XMFLOAT2(0.25, 0.25)
+        XMFLOAT2(0, 1), XMFLOAT2(1, 1), XMFLOAT2(1, 0), XMFLOAT2(0, 0)
     };
 
     for (size_t quad = 0; quad < 6; quad++)
@@ -798,7 +814,7 @@ bool Graphics::initIrradianceMap()
         std::array<TextureVertex, 4> vertices;
         std::generate(vertices.begin(), vertices.end(),
             [vertex = 0, quadPos, quadTex, quad]() mutable {
-            return TextureVertex{ quadPos[quad][vertex], quadTex[vertex++] };
+            return TextureVertex{ quadPos[quad][vertex], quadTex[vertex++]};
         });
         if (!PrimitiveSample::createQuad(cubemapPrim[quad], vertices))
             return false;
@@ -809,7 +825,7 @@ bool Graphics::initIrradianceMap()
 
 void Graphics::buildIrradianceMap()
 {
-    Camera skyCamera(camera.getPosition());
+    Camera skyCamera;
     auto pos = skyCamera.getPosition().m128_f32;
     SimpleConstantBuffer simpleCB;
     simpleCB.mWorld = XMMatrixTranspose(XMMatrixTranslation(pos[0], pos[1], pos[2]));
@@ -880,6 +896,18 @@ void Graphics::render()
         setViewport(width, height);
         setRenderTarget(baseTextureRTV);
         renderScene();
+
+        SimpleConstantBuffer simpleCB;
+
+        startEvent(L"DrawSkybox");
+        auto pos = camera.getPosition().m128_f32;
+        simpleCB.mWorld = XMMatrixTranspose(XMMatrixScaling(100, 100, 100)); // (XMMatrixMultiply(XMMatrixTranslation(pos[0], pos[1], pos[2]), ));
+        simpleCB.mProjection = XMMatrixTranspose(camera.projection());
+        simpleCB.mView = XMMatrixTranspose(camera.view());
+
+        simpleCbuf->update(simpleCB);
+        skyboxPrim->render(skyboxShader, samplerState, cubeSRV);
+        endEvent();
 
         ID3D11ShaderResourceView* brightnessPixelSRV = nullptr;
         ID3D11Texture2D* brightnessPixelTex2D = nullptr;

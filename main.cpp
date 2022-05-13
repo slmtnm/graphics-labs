@@ -2,7 +2,7 @@
 #include "window.h"
 #include "graphics.h"
 
-#include "unit_skybox.h"
+#include "unit_skysphere.h"
 #include "unit_sphere_scene.h"
 
 int WINAPI WinMain(
