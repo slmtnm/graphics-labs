@@ -485,7 +485,7 @@ void Graphics::moveCamera() {
     // Camera movement
     XMVECTOR moveDirection = { 0.0f, 0.0f, 0.0f, 0.0f };
     if (moveRight) moveDirection += camera.getRight();
-    if (moveLeft) moveDirection += -camera.getRight();
+    if (moveLeft) moveDirection -= camera.getRight();
     if (moveForward) moveDirection += camera.getDirection();
     if (moveBackward) moveDirection -= camera.getDirection();
     if (moveUp) moveDirection += { 0.0f, 1.0f, 0.0f, 0.0f };
@@ -852,6 +852,7 @@ void Graphics::buildIrradianceMap()
     };
 
     ID3D11RenderTargetView* nullViews[] = { nullptr };
+
     for (size_t i = 0; i < 6; i++)
     {
         // first just render skysphere
@@ -900,8 +901,9 @@ void Graphics::render()
         SimpleConstantBuffer simpleCB;
 
         startEvent(L"DrawSkybox");
+        const float scale = 3000.0f;
         auto pos = camera.getPosition().m128_f32;
-        simpleCB.mWorld = XMMatrixTranspose(XMMatrixScaling(100, 100, 100)); // (XMMatrixMultiply(XMMatrixTranslation(pos[0], pos[1], pos[2]), ));
+        simpleCB.mWorld = XMMatrixTranspose(XMMatrixMultiply(XMMatrixScaling(scale, scale, scale), XMMatrixTranslation(pos[0], pos[1], pos[2])));
         simpleCB.mProjection = XMMatrixTranspose(camera.projection());
         simpleCB.mView = XMMatrixTranspose(camera.view());
 

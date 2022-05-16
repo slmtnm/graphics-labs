@@ -12,7 +12,7 @@ void Camera::updateViewMatrix() {
 
 void Camera::updateViewMatrix(XMVECTOR const& direction, XMVECTOR const& right) {
     this->direction = direction;
-    viewMatrix = XMMatrixLookAtLH(position, XMVectorAdd(position, direction), XMVector3Cross(right, direction));
+    viewMatrix = XMMatrixLookAtLH(position, XMVectorAdd(position, direction), XMVector3Cross(direction, right));
 }
 
 void Camera::updateProjectionMatrix() {
