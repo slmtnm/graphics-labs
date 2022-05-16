@@ -44,7 +44,7 @@ public:
     };
 
     // factory method
-    static std::shared_ptr<Graphics> init(HWND hWnd);
+    std::shared_ptr<Graphics> init(HWND hWnd);
     static std::shared_ptr<Graphics> get();
 
     void initShaders();
@@ -169,12 +169,6 @@ private:
         float _dummy[3];
     };
 
-    struct ScreenSpaceConstantBuffer
-    {
-        int isScreenSpace;
-        int _dummy[3];
-    };
-
     Camera camera;
 
     std::shared_ptr<Shader> 
@@ -184,7 +178,7 @@ private:
         skyboxShader;
     //std::unique_ptr<Primitive> quadPrim;
     std::shared_ptr<Primitive> 
-        screenQuadPrim, brightQuadPrim, skySpherePrim, skyboxPrim;
+        screenQuadPrim, brightQuadPrim, /*skySpherePrim,*/ skyboxPrim;
     std::array<std::shared_ptr<Primitive>, 6> cubemapPrim;
 
     std::shared_ptr<ConstBuffer<SimpleConstantBuffer>> simpleCbuf;
@@ -192,7 +186,6 @@ private:
     std::unique_ptr<ConstBuffer<PBRConstantBuffer>> pbrCbuf;
     std::unique_ptr<ConstBuffer<BrightnessConstantBuffer>> brightnessCbuf;
     std::unique_ptr<ConstBuffer<TonemapConstantBuffer>> tonemapCbuf;
-    std::unique_ptr<ConstBuffer<ScreenSpaceConstantBuffer>> screenSpaceCbuf;
 
     std::array<SpotLight, 3> spotLights;
     std::chrono::system_clock::time_point start;

@@ -13,14 +13,13 @@ struct VS_INPUT
     float3 Pos : POSITION;
     float3 Norm : NORMAL;
     float4 Color : COLOR0;
-    //float2 Tex : TEXCOORD0;
 };
 
 
-struct VS_OUTPUT    //output structure for skymap vertex shader
+struct VS_OUTPUT
 {
     float4 Pos : SV_POSITION;
-    float2 Tex : TEXCOORD;
+    float3 WorldPos : TEXCOORD;
 };
 
 
@@ -31,8 +30,9 @@ VS_OUTPUT VS(VS_INPUT input)
     output.Pos = mul(float4(input.Pos, 1.0f), World);
     output.Pos = mul(output.Pos, View);
     output.Pos = mul(output.Pos, Projection);
-
-    //output.Tex = input.Tex;
+    //output.Pos = float4(input.Pos, 1.0f);
+    
+    output.WorldPos = output.Pos.xyz;
 
     return output;
 }
@@ -40,5 +40,10 @@ VS_OUTPUT VS(VS_INPUT input)
 
 float4 PS(VS_OUTPUT input) : SV_Target
 {
-    return float4(1, 0, 0, 1); // Texture.Sample(ObjSamplerState, input.Tex);
+    const float PI = 3.14159265359f;
+
+    float3 pos = normalize(input.WorldPos);
+    float u = atan2(pos.x, pos.z + 1e-4f) / (2 * PI);
+    float v = 1.0f - (asin(pos.y) / PI - 0.5f);
+    return Texture.Sample(ObjSamplerState, float2(u, v));
 }

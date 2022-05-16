@@ -37,8 +37,8 @@ private:
 	XMVECTOR direction;
 
 	const float fov = XM_PIDIV2;
-	const float nearZ = 0.01f;
-	const float farZ = 10000.f;
+	const float nearZ = 0.5f;
+	const float farZ = 5000.f;
 	float aspectRatio = 1;
 
 	XMMATRIX viewMatrix;

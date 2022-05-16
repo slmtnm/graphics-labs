@@ -11,7 +11,7 @@ int WINAPI WinMain(
     _In_ LPSTR lpCmdLine,
     _In_ int nCmdShow) {
     auto graphics = Graphics::get();
-    //graphics->addUnit(std::make_shared<UnitSkybox>());
+    //graphics->addUnit(std::make_shared<UnitSkysphere>());
     graphics->addUnit(std::make_shared<UnitSphereScene>());
     auto wnd = Window::window(hInstance, hPrevInstance, lpCmdLine, nCmdShow);
     return 0;

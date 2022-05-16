@@ -30,11 +30,9 @@
 std::shared_ptr<Graphics> Graphics::inst(new Graphics);
 
 
-std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
-    // alias
-    auto graphics = inst;
-
-    graphics->start = std::chrono::system_clock::now();
+std::shared_ptr<Graphics> Graphics::init(HWND hWnd)
+{
+    start = std::chrono::system_clock::now();
 
     RECT rc;
     GetClientRect(hWnd, &rc);
@@ -64,14 +62,14 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
         hr = D3D11CreateDevice(
         nullptr, driverType, nullptr,
         createDeviceFlags, featureLevels.data(), static_cast<UINT>(featureLevels.size()),
-        D3D11_SDK_VERSION, &graphics->device, &featureLevel, &graphics->context);
+        D3D11_SDK_VERSION, &device, &featureLevel, &context);
         
         if (FAILED(hr)) {
             // DirectX 11.0 platforms will not recognize D3D_FEATURE_LEVEL_11_1 so we need to retry without it
             hr = D3D11CreateDevice(
                 nullptr, driverType, nullptr,
                 createDeviceFlags, featureLevels.data() + 1, static_cast<UINT>(featureLevels.size() - 1),
-                D3D11_SDK_VERSION, &graphics->device, &featureLevel, &graphics->context);
+                D3D11_SDK_VERSION, &device, &featureLevel, &context);
         }
 
         if (SUCCEEDED(hr)) {
@@ -82,8 +80,8 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
         return nullptr;
     }
 
-    hr = graphics->context->QueryInterface(__uuidof(ID3DUserDefinedAnnotation),
-        reinterpret_cast<void**>(&graphics->annotation));
+    hr = context->QueryInterface(__uuidof(ID3DUserDefinedAnnotation),
+        reinterpret_cast<void**>(&annotation));
 
     if (FAILED(hr))
         return nullptr;
@@ -92,7 +90,7 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
     IDXGIFactory1* dxgiFactory = nullptr;
     {
         IDXGIDevice* dxgiDevice = nullptr;
-        hr = graphics->device->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void**>(&dxgiDevice));
+        hr = device->QueryInterface(__uuidof(IDXGIDevice), reinterpret_cast<void**>(&dxgiDevice));
 
         if (SUCCEEDED(hr)) {
             IDXGIAdapter* adapter = nullptr;
@@ -115,9 +113,9 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
     hr = dxgiFactory->QueryInterface(__uuidof(IDXGIFactory2), reinterpret_cast<void**>(&dxgiFactory2));
     if (dxgiFactory2) {
         // DirectX 11.1 or later
-        hr = graphics->device->QueryInterface(__uuidof(ID3D11Device1), reinterpret_cast<void**>(&graphics->device1));
+        hr = device->QueryInterface(__uuidof(ID3D11Device1), reinterpret_cast<void**>(&device1));
         if (SUCCEEDED(hr))
-            (void)graphics->context->QueryInterface( __uuidof(ID3D11DeviceContext1), reinterpret_cast<void**>(&graphics->context1));
+            (void)context->QueryInterface( __uuidof(ID3D11DeviceContext1), reinterpret_cast<void**>(&context1));
 
         DXGI_SWAP_CHAIN_DESC1 sd;
         ZeroMemory(&sd, sizeof(sd));
@@ -129,9 +127,9 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
         sd.BufferUsage = DXGI_USAGE_RENDER_TARGET_OUTPUT;
         sd.BufferCount = 1;
 
-        hr = dxgiFactory2->CreateSwapChainForHwnd(graphics->device, hWnd, &sd, nullptr, nullptr, &graphics->swapChain1);
+        hr = dxgiFactory2->CreateSwapChainForHwnd(device, hWnd, &sd, nullptr, nullptr, &swapChain1);
         if (SUCCEEDED(hr))
-            hr = graphics->swapChain1->QueryInterface( __uuidof(IDXGISwapChain), reinterpret_cast<void**>(&graphics->swapChain));
+            hr = swapChain1->QueryInterface( __uuidof(IDXGISwapChain), reinterpret_cast<void**>(&swapChain));
 
         dxgiFactory2->Release();
     }
@@ -151,7 +149,7 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
         sd.SampleDesc.Quality = 0;
         sd.Windowed = TRUE;
 
-        hr = dxgiFactory->CreateSwapChain(graphics->device, &sd, &graphics->swapChain);
+        hr = dxgiFactory->CreateSwapChain(device, &sd, &swapChain);
     }
 
     // Note this tutorial doesn't handle full-screen swapchains so we block the ALT+ENTER shortcut
@@ -161,37 +159,37 @@ std::shared_ptr<Graphics> Graphics::init(HWND hWnd) {
     if (FAILED(hr))
         return nullptr;
 
-    graphics->initShaders();
+    initShaders();
     
-    if (!graphics->createRenderTargetTexture(
-        width, height, &inst->baseTextureRTV, inst->baseSRV, inst->samplerState, DXGI_FORMAT_R32G32B32A32_FLOAT, false, true))
+    if (!createRenderTargetTexture(
+        width, height, &baseTextureRTV, baseSRV, samplerState, DXGI_FORMAT_R32G32B32A32_FLOAT, false, true))
         return nullptr; 
 
     // Create a render target view
     ID3D11Texture2D* pBackBuffer = nullptr;
-    hr = graphics->swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&pBackBuffer));
+    hr = swapChain->GetBuffer(0, __uuidof(ID3D11Texture2D), reinterpret_cast<void**>(&pBackBuffer));
     if (FAILED(hr))
         return nullptr;
 
-    hr = graphics->device->CreateRenderTargetView(pBackBuffer, nullptr, &graphics->swapChainRTV);
+    hr = device->CreateRenderTargetView(pBackBuffer, nullptr, &swapChainRTV);
     pBackBuffer->Release();
     if (FAILED(hr))
         return nullptr;
 
-    if (!graphics->createDepthStencil(width, height))
+    if (!createDepthStencil(width, height))
         return nullptr;
 
-    graphics->initGUI(hWnd);
+    initGUI(hWnd);
 
-    if (!graphics->initGeometry())
+    if (!initGeometry())
         return nullptr;
 
-    graphics->initLights();
+    initLights();
 
-    graphics->width = width;
-    graphics->height = height;
+    width = width;
+    height = height;
 
-    return graphics;
+    return inst;
 }
 
 bool Graphics::createDepthStencil(UINT width, UINT height)
@@ -280,7 +278,6 @@ void Graphics::initShaders()
     materialCbuf = std::make_unique<ConstBuffer<MaterialConstantBuffer>>();
     brightnessCbuf = std::make_unique<ConstBuffer<BrightnessConstantBuffer>>();
     tonemapCbuf = std::make_unique<ConstBuffer<TonemapConstantBuffer>>();
-    screenSpaceCbuf = std::make_unique<ConstBuffer<ScreenSpaceConstantBuffer>>();
 
     // Define the input layout
     D3D11_INPUT_ELEMENT_DESC simpleLayout[] =
@@ -410,7 +407,7 @@ bool Graphics::createRenderTargetTexture(
         sampDesc.AddressU = D3D11_TEXTURE_ADDRESS_WRAP;
         sampDesc.AddressV = D3D11_TEXTURE_ADDRESS_WRAP;
         sampDesc.AddressW = D3D11_TEXTURE_ADDRESS_WRAP;
-        sampDesc.ComparisonFunc = D3D11_COMPARISON_NEVER;
+        sampDesc.ComparisonFunc = D3D11_COMPARISON_ALWAYS;
         sampDesc.MinLOD = 0;
         sampDesc.MaxLOD = D3D11_FLOAT32_MAX;
         hr = inst->device->CreateSamplerState(&sampDesc, &samplerState);
@@ -467,6 +464,7 @@ bool Graphics::initGeometry() {
     success &= PrimitiveSample::createScreenQuad(brightQuadPrim, false, 0.8f);
 
     initIrradianceMap();
+    buildIrradianceMap();
 
     return success;
 }
@@ -541,6 +539,19 @@ void Graphics::renderScene() {
 
     for (auto& u : units)
         u->render(inst);
+
+    // Draw skybox
+    SimpleConstantBuffer simpleCB;
+
+    startEvent(L"DrawSkybox");
+    const float scale = 3000.0f;
+    simpleCB.mWorld = XMMatrixTranspose(XMMatrixMultiply(XMMatrixScaling(scale, scale, scale), XMMatrixTranslation(pos[0], pos[1], pos[2])));
+    simpleCB.mProjection = XMMatrixTranspose(camera.projection());
+    simpleCB.mView = XMMatrixTranspose(camera.view());
+
+    simpleCbuf->update(simpleCB);
+    skyboxPrim->render(skyboxShader, samplerState, cubeSRV);
+    endEvent();
 }
 
 void Graphics::renderGUI() {
@@ -766,8 +777,7 @@ bool Graphics::initIrradianceMap()
     texShader = ShaderFactory::makeShaders(L"texture.fx", texLayout, 2);
     texShader->addConstBuffers(
         {
-            { simpleCbuf->appliedConstBuffer(), true, false },
-            { screenSpaceCbuf->appliedConstBuffer(), true, false }
+            { simpleCbuf->appliedConstBuffer(), true, false }
         });
 
     skyboxShader = ShaderFactory::makeShaders(L"skybox.fx", simpleLayout, 3);
@@ -776,8 +786,8 @@ bool Graphics::initIrradianceMap()
             { simpleCbuf->appliedConstBuffer(), true, false}
         });
 
-    if (!PrimitiveSample::createSphere(skySpherePrim, 500.0f, true, true))
-        return false;
+    //if (!PrimitiveSample::createSphere(skySpherePrim, 500.0f, true, true))
+    //    return false;
 
     if (!PrimitiveSample::createCube(skyboxPrim, true))
         return false;
@@ -788,35 +798,22 @@ bool Graphics::initIrradianceMap()
 
     XMFLOAT3 quadPos[6][4] =
     {
-        //{XMFLOAT3(0.5, -0.5, -0.5), XMFLOAT3(0.5, 0.5, -0.5), XMFLOAT3(0.5, 0.5, 0.5), XMFLOAT3(0.5, -0.5, 0.5)},        // +x
-        //{XMFLOAT3(-0.5, -0.5, -0.5), XMFLOAT3(-0.5, 0.5, -0.5), XMFLOAT3(-0.5, 0.5, 0.5), XMFLOAT3(-0.5, -0.5, 0.5)},    // -x
-        //{XMFLOAT3(-0.5, 0.5, -0.5), XMFLOAT3(0.5, 0.5, -0.5), XMFLOAT3(0.5, 0.5, 0.5), XMFLOAT3(-0.5, 0.5, 0.5)},        // +y
-        //{XMFLOAT3(-0.5, -0.5, -0.5), XMFLOAT3(0.5, -0.5, -0.5), XMFLOAT3(0.5, -0.5, 0.5), XMFLOAT3(-0.5, -0.5, 0.5)},    // -y
-        //{XMFLOAT3(-0.5, -0.5, 0.5), XMFLOAT3(0.5, -0.5, 0.5), XMFLOAT3(0.5, 0.5, 0.5), XMFLOAT3(-0.5, 0.5, 0.5)},        // +z
-        //{XMFLOAT3(0.5, -0.5, -0.5), XMFLOAT3(-0.5, -0.5, -0.5), XMFLOAT3(0.5, 0.5, -0.5), XMFLOAT3(-0.5, 0.5, -0.5)}     // -z
-        {XMFLOAT3(-0.5, -0.5, 0.5), XMFLOAT3(0.5, -0.5, 0.5), XMFLOAT3(0.5, 0.5, 0.5), XMFLOAT3(-0.5, 0.5, 0.5)},
-        {XMFLOAT3(-0.5, -0.5, 0.5), XMFLOAT3(0.5, -0.5, 0.5), XMFLOAT3(0.5, 0.5, 0.5), XMFLOAT3(-0.5, 0.5, 0.5)},
-        {XMFLOAT3(-0.5, -0.5, 0.5), XMFLOAT3(0.5, -0.5, 0.5), XMFLOAT3(0.5, 0.5, 0.5), XMFLOAT3(-0.5, 0.5, 0.5)},
-        {XMFLOAT3(-0.5, -0.5, 0.5), XMFLOAT3(0.5, -0.5, 0.5), XMFLOAT3(0.5, 0.5, 0.5), XMFLOAT3(-0.5, 0.5, 0.5)},
-        {XMFLOAT3(-0.5, -0.5, 0.5), XMFLOAT3(0.5, -0.5, 0.5), XMFLOAT3(0.5, 0.5, 0.5), XMFLOAT3(-0.5, 0.5, 0.5)},
-        {XMFLOAT3(-0.5, -0.5, 0.5), XMFLOAT3(0.5, -0.5, 0.5), XMFLOAT3(0.5, 0.5, 0.5), XMFLOAT3(-0.5, 0.5, 0.5)},
-    };
-
-    // fill tex coords
-    XMFLOAT2 quadTex[] =
-    {
-        //XMFLOAT2(0.25, 0.75), XMFLOAT2(0.75, 0.75), XMFLOAT2(0.75, 0.25), XMFLOAT2(0.25, 0.25)
-        XMFLOAT2(0, 1), XMFLOAT2(1, 1), XMFLOAT2(1, 0), XMFLOAT2(0, 0)
+        {XMFLOAT3(0.5, -0.5, 0.5), XMFLOAT3(0.5, -0.5, -0.5), XMFLOAT3(0.5, 0.5, -0.5), XMFLOAT3(0.5, 0.5, 0.5)},        // +x
+        {XMFLOAT3(-0.5, -0.5, -0.5), XMFLOAT3(-0.5, -0.5, 0.5), XMFLOAT3(-0.5, 0.5, 0.5), XMFLOAT3(-0.5, 0.5, -0.5)},    // -x
+        {XMFLOAT3(-0.5, 0.5, 0.5), XMFLOAT3(0.5, 0.5, 0.5), XMFLOAT3(0.5, 0.5, -0.5), XMFLOAT3(-0.5, 0.5, -0.5)},        // +y
+        {XMFLOAT3(0.5, -0.5, 0.5), XMFLOAT3(-0.5, -0.5, 0.5), XMFLOAT3(-0.5, -0.5, -0.5), XMFLOAT3(0.5, -0.5, -0.5)},    // -y
+        {XMFLOAT3(-0.5, -0.5, 0.5), XMFLOAT3(0.5, -0.5, 0.5), XMFLOAT3(0.5, 0.5, 0.5), XMFLOAT3(-0.5, 0.5, 0.5)},        // +z
+        {XMFLOAT3(0.5, -0.5, -0.5), XMFLOAT3(-0.5, -0.5, -0.5), XMFLOAT3(-0.5, 0.5, -0.5), XMFLOAT3(0.5, 0.5, -0.5)}     // -z
     };
 
     for (size_t quad = 0; quad < 6; quad++)
     {
-        std::array<TextureVertex, 4> vertices;
+        std::array<SimpleVertex, 4> vertices;
         std::generate(vertices.begin(), vertices.end(),
-            [vertex = 0, quadPos, quadTex, quad]() mutable {
-            return TextureVertex{ quadPos[quad][vertex], quadTex[vertex++]};
+            [vertex = 0, quadPos, quad]() mutable {
+            return SimpleVertex{ quadPos[quad][vertex++], XMFLOAT3(0.0f, 0.0f, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f) };
         });
-        if (!PrimitiveSample::createQuad(cubemapPrim[quad], vertices))
+        if (!PrimitiveSample::createQuad<SimpleVertex>(cubemapPrim[quad], vertices))
             return false;
     }
     
@@ -825,11 +822,11 @@ bool Graphics::initIrradianceMap()
 
 void Graphics::buildIrradianceMap()
 {
-    Camera skyCamera;
+    Camera skyCamera({ 0.0f, 0.0f, 0.0f });
     auto pos = skyCamera.getPosition().m128_f32;
     SimpleConstantBuffer simpleCB;
-    simpleCB.mWorld = XMMatrixTranspose(XMMatrixTranslation(pos[0], pos[1], pos[2]));
-    simpleCB.mProjection = XMMatrixTranspose(camera.projection());
+    simpleCB.mWorld = XMMatrixIdentity();
+    simpleCB.mProjection = XMMatrixTranspose(skyCamera.projection());
 
     XMFLOAT3 direction[] =
     {
@@ -851,35 +848,21 @@ void Graphics::buildIrradianceMap()
         XMFLOAT3(-1, 0, 0)
     };
 
-    ID3D11RenderTargetView* nullViews[] = { nullptr };
+    ID3D11RenderTargetView* nullRTV[] = { nullptr };
+    ID3D11ShaderResourceView* nullSRV[] = { nullptr };
 
     for (size_t i = 0; i < 6; i++)
     {
-        // first just render skysphere
+        startEvent((std::wstring(L"SkySphere2Cube") + std::to_wstring(i)).c_str());
+        setViewport(cubemapTexWidth, cubemapTexWidth);
+        setRenderTarget(cubeRTV[i], false);
+
         skyCamera.updateViewMatrix(XMLoadFloat3(&direction[i]), XMLoadFloat3(&right[i]));
         simpleCB.mView = XMMatrixTranspose(skyCamera.view());
         simpleCbuf->update(simpleCB);
+        cubemapPrim[i]->render(cylinder2cubemapShader, samplerState, skySphereSRV);
 
-        startEvent((std::wstring(L"DrawSkySphere") + std::to_wstring(i)).c_str());
-        setViewport(width, height);
-        setRenderTarget(baseTextureRTV, true);
-        screenSpaceCbuf->update(ScreenSpaceConstantBuffer{ false });
-        skySpherePrim->render(texShader, samplerState, skySphereSRV);
-
-        ID3D11ShaderResourceView* null[] = { nullptr };
-
-        context->PSSetShaderResources(0, 1, null);
-
-        endEvent();
-
-        // second, make shot in cubemap RTV
-        startEvent((std::wstring(L"ProjSkySphere2Cube") + std::to_wstring(i)).c_str());
-        setViewport(cubemapTexWidth, cubemapTexWidth);
-        setRenderTarget(cubeRTV[i], false);
-        screenSpaceCbuf->update(ScreenSpaceConstantBuffer{ true });
-        cubemapPrim[i]->render(texShader, samplerState, baseSRV);
-
-        context->PSSetShaderResources(0, 1, null);
+        context->PSSetShaderResources(0, 1, nullSRV);
 
         endEvent();
     }
@@ -890,26 +873,15 @@ void Graphics::render()
     moveCamera();
     renderGUI();
 
+    // TODO just for debug. Remove later.
+    buildIrradianceMap();
+
     if (DrawMask == 0)
     {
-        buildIrradianceMap();
-
         setViewport(width, height);
         setRenderTarget(baseTextureRTV);
+        //skySpherePrim->render(texShader, samplerState, skySphereSRV);
         renderScene();
-
-        SimpleConstantBuffer simpleCB;
-
-        startEvent(L"DrawSkybox");
-        const float scale = 3000.0f;
-        auto pos = camera.getPosition().m128_f32;
-        simpleCB.mWorld = XMMatrixTranspose(XMMatrixMultiply(XMMatrixScaling(scale, scale, scale), XMMatrixTranslation(pos[0], pos[1], pos[2])));
-        simpleCB.mProjection = XMMatrixTranspose(camera.projection());
-        simpleCB.mView = XMMatrixTranspose(camera.view());
-
-        simpleCbuf->update(simpleCB);
-        skyboxPrim->render(skyboxShader, samplerState, cubeSRV);
-        endEvent();
 
         ID3D11ShaderResourceView* brightnessPixelSRV = nullptr;
         ID3D11Texture2D* brightnessPixelTex2D = nullptr;
@@ -1001,9 +973,8 @@ void Graphics::cleanup() {
     //quadPrim->cleanup();
     screenQuadPrim->cleanup();
     brightQuadPrim->cleanup();
-    skySpherePrim->cleanup();
+    //skySpherePrim->cleanup();
     skyboxPrim->cleanup();
-    screenSpaceCbuf->cleanup();
 
     for (auto prim : cubemapPrim)
         prim->cleanup();

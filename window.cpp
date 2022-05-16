@@ -14,7 +14,7 @@ std::shared_ptr<Graphics> Window::graphics;
 
 bool Window::onCreate(HWND hWnd, std::shared_ptr<Graphics>& graphics) {
     // init directx
-    graphics = Graphics::init(hWnd);
+    graphics = Graphics::get()->init(hWnd);
     if (!graphics) {
         MessageBox(NULL,
             _T("Could not initialize DirectX"),

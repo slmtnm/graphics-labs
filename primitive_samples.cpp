@@ -10,7 +10,7 @@ bool PrimitiveSample::createSphere(std::shared_ptr<Primitive>& prim, float R, bo
 {
     const int N = 50, M = 50;
     const float PI = 3.14159265359f;
-
+    
     std::array<SimpleVertex, M * N> vertices;
     // TODO NEED HUGE REFACTORING. CRINGE!!!
     std::array<TextureVertex, M * N> tvertices;
@@ -45,7 +45,7 @@ bool PrimitiveSample::createSphere(std::shared_ptr<Primitive>& prim, float R, bo
                 tvertices[idx].Pos.y = y * R;
                 tvertices[idx].Pos.z = z * R;
 
-                tvertices[idx].Tex = XMFLOAT2(phi / (2 * PI), 1 - (asin(y) / PI - 0.5f));
+                tvertices[idx].Tex = XMFLOAT2(phi / (2 * PI), theta / PI);
             }
         }
     }
