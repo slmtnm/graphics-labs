@@ -32,7 +32,7 @@ VS_OUTPUT VS(VS_INPUT input)
     output.Pos = mul(output.Pos, Projection);
     //output.Pos = float4(input.Pos, 1.0f);
     
-    output.WorldPos = output.Pos.xyz;
+    output.WorldPos = input.Pos;
 
     return output;
 }
