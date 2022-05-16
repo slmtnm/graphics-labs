@@ -989,6 +989,8 @@ void Graphics::cleanup() {
     brightShader->cleanup();
     tonemapShader->cleanup();
     texShader->cleanup();
+    skyboxShader->cleanup();
+    cylinder2cubemapShader->cleanup();
 
     simpleCbuf->cleanup();
     pbrCbuf->cleanup();
@@ -1000,6 +1002,8 @@ void Graphics::cleanup() {
     screenQuadPrim->cleanup();
     brightQuadPrim->cleanup();
     skySpherePrim->cleanup();
+    skyboxPrim->cleanup();
+    screenSpaceCbuf->cleanup();
 
     for (auto prim : cubemapPrim)
         prim->cleanup();
