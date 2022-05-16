@@ -176,5 +176,8 @@
     <FxCompile Include="cylinder2cubemap.fx">
       <Filter>Shader</Filter>
     </FxCompile>
+    <FxCompile Include="irradiance.fx">
+      <Filter>Shader</Filter>
+    </FxCompile>
   </ItemGroup>
 </Project>

@@ -131,12 +131,13 @@ private:
 
     ID3D11RenderTargetView* swapChainRTV = nullptr;
     ID3D11RenderTargetView* baseTextureRTV = nullptr;
-    std::array<ID3D11RenderTargetView*, 6> cubeRTV;
+    std::array<ID3D11RenderTargetView*, 6> skyboxCubeRTV, irradianceCubeRTV;
 
-    ID3D11ShaderResourceView* baseSRV = nullptr;
-    ID3D11ShaderResourceView* skySphereSRV = nullptr;    
-    ID3D11ShaderResourceView* cubeSRV = nullptr;
-
+    ID3D11ShaderResourceView
+        *baseSRV = nullptr,
+        *skySphereSRV = nullptr,
+        *skyboxCubeSRV = nullptr,
+        *irradianceCubeSRV = nullptr;
 
     ID3D11SamplerState* samplerState = nullptr;
 
@@ -175,10 +176,10 @@ private:
         pbrShader, brightShader,
         tonemapShader, texShader,
         cylinder2cubemapShader,
-        skyboxShader;
-    //std::unique_ptr<Primitive> quadPrim;
+        skyboxShader,
+        irradianceShader;
     std::shared_ptr<Primitive> 
-        screenQuadPrim, brightQuadPrim, /*skySpherePrim,*/ skyboxPrim;
+        screenQuadPrim, brightQuadPrim, skyboxPrim;
     std::array<std::shared_ptr<Primitive>, 6> cubemapPrim;
 
     std::shared_ptr<ConstBuffer<SimpleConstantBuffer>> simpleCbuf;
@@ -212,7 +213,7 @@ private:
     const float sensitivity = 0.1f;
 
     // sky cubemap tex width
-    const UINT cubemapTexWidth = 512;
+    const UINT skyboxTexWidth = 512, irradianceTexWidth = 32;
 
     // last frame timestamp
     DWORD lastFrame = timeGetTime();

@@ -112,7 +112,7 @@ float G(float3 n, float3 v, float3 l)
 float3 F(float3 n, float3 v)
 {
     float3 F0met = float3(0.04f, 0.04f, 0.04f) * (1 - metalness) + F0 * metalness;
-    float3 Fval = F0met + (float3(1.0f, 1.0f, 1.0f) - F0met) * pow5(1 - dot(n, v));
+    float3 Fval = F0met + (max(1 - roughness, F0met) - F0met) * pow5(1 - dot(n, v));
     return Fval;
 }
 

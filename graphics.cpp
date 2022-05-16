@@ -309,6 +309,11 @@ void Graphics::initShaders()
     tonemapShader = ShaderFactory::makeShaders(L"tonemap.fx", brightLayout, 2);
     tonemapShader->addConstBuffers({ { tonemapCbuf->appliedConstBuffer(), false, true } });
 
+    irradianceShader = ShaderFactory::makeShaders(L"irradiance.fx", simpleLayout, 3);
+    irradianceShader->addConstBuffers(
+        {
+            { simpleCbuf->appliedConstBuffer(), true, false }
+        });
 }
 
 void Graphics::initLights()
@@ -550,7 +555,7 @@ void Graphics::renderScene() {
     simpleCB.mView = XMMatrixTranspose(camera.view());
 
     simpleCbuf->update(simpleCB);
-    skyboxPrim->render(skyboxShader, samplerState, cubeSRV);
+    skyboxPrim->render(skyboxShader, samplerState, skyboxCubeSRV);
     endEvent();
 }
 
@@ -763,15 +768,15 @@ bool Graphics::initIrradianceMap()
             { simpleCbuf->appliedConstBuffer(), true, true }
         });
 
-    //"je_gray_park_4k.hdr"
-    if (!makeSRVFromFile("Road_to_MonumentValley_Ref.hdr", skySphereSRV))
+    //"Road_to_MonumentValley_Ref.hdr"
+    if (!makeSRVFromFile("je_gray_park_4k.hdr", skySphereSRV))
         return false;
 
     // Define the input layout
     D3D11_INPUT_ELEMENT_DESC texLayout[] =
     {
         { "POSITION", 0, DXGI_FORMAT_R32G32B32_FLOAT, 0, 0, D3D11_INPUT_PER_VERTEX_DATA, 0 },
-        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0}
+        { "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, 12, D3D11_INPUT_PER_VERTEX_DATA, 0 }
     };
 
     texShader = ShaderFactory::makeShaders(L"texture.fx", texLayout, 2);
@@ -792,8 +797,16 @@ bool Graphics::initIrradianceMap()
     if (!PrimitiveSample::createCube(skyboxPrim, true))
         return false;
 
-    // Create cubemap texture
-    if (!createRenderTargetTexture(cubemapTexWidth, cubemapTexWidth, cubeRTV.data(), cubeSRV, samplerState, DXGI_FORMAT_R32G32B32A32_FLOAT, true))
+    // Create cubemap texture for skybox ...
+    if (!createRenderTargetTexture(
+            skyboxTexWidth, skyboxTexWidth, skyboxCubeRTV.data(), skyboxCubeSRV,
+            samplerState, DXGI_FORMAT_R32G32B32A32_FLOAT, true))
+        return false;
+
+    // ... and for irradiance map
+    if (!createRenderTargetTexture(
+            irradianceTexWidth, irradianceTexWidth, irradianceCubeRTV.data(),
+            irradianceCubeSRV, samplerState, DXGI_FORMAT_R32G32B32A32_FLOAT, true))
         return false;
 
     XMFLOAT3 quadPos[6][4] =
@@ -848,22 +861,35 @@ void Graphics::buildIrradianceMap()
         XMFLOAT3(-1, 0, 0)
     };
 
-    ID3D11RenderTargetView* nullRTV[] = { nullptr };
-    ID3D11ShaderResourceView* nullSRV[] = { nullptr };
+    ID3D11ShaderResourceView* nullSRV[128] = { nullptr };
 
     for (size_t i = 0; i < 6; i++)
     {
         startEvent((std::wstring(L"SkySphere2Cube") + std::to_wstring(i)).c_str());
-        setViewport(cubemapTexWidth, cubemapTexWidth);
-        setRenderTarget(cubeRTV[i], false);
+        setViewport(skyboxTexWidth, skyboxTexWidth);
+        setRenderTarget(skyboxCubeRTV[i], false);
 
         skyCamera.updateViewMatrix(XMLoadFloat3(&direction[i]), XMLoadFloat3(&right[i]));
         simpleCB.mView = XMMatrixTranspose(skyCamera.view());
         simpleCbuf->update(simpleCB);
+
         cubemapPrim[i]->render(cylinder2cubemapShader, samplerState, skySphereSRV);
+        context->PSSetShaderResources(0, 128, nullSRV);
+        endEvent();
+    }
 
-        context->PSSetShaderResources(0, 1, nullSRV);
+    for (size_t i = 0; i < 6; i++)
+    {
+        startEvent((std::wstring(L"IrradianceMap") + std::to_wstring(i)).c_str());
+        setViewport(irradianceTexWidth, irradianceTexWidth);
+        setRenderTarget(irradianceCubeRTV[i], false);
 
+        skyCamera.updateViewMatrix(XMLoadFloat3(&direction[i]), XMLoadFloat3(&right[i]));
+        simpleCB.mView = XMMatrixTranspose(skyCamera.view());
+        simpleCbuf->update(simpleCB);
+
+        cubemapPrim[i]->render(irradianceShader, samplerState, skyboxCubeSRV);
+        context->PSSetShaderResources(0, 128, nullSRV);
         endEvent();
     }
 }
@@ -873,7 +899,7 @@ void Graphics::render()
     moveCamera();
     renderGUI();
 
-    // TODO just for debug. Remove later.
+    // TODO for debug
     buildIrradianceMap();
 
     if (DrawMask == 0)
@@ -949,12 +975,15 @@ void Graphics::cleanup() {
 
     if (swapChainRTV) swapChainRTV->Release();
     if (baseTextureRTV) baseTextureRTV->Release();
-    for (auto rtv : cubeRTV)
+    for (auto rtv : skyboxCubeRTV)
+        if (rtv) rtv->Release();
+    for (auto rtv : irradianceCubeRTV)
         if (rtv) rtv->Release();
 
     if (baseSRV) baseSRV->Release();
     if (skySphereSRV) skySphereSRV->Release();
-    if (cubeSRV) cubeSRV->Release();
+    if (skyboxCubeSRV) skyboxCubeSRV->Release();
+    if (irradianceCubeSRV) irradianceCubeSRV->Release();
 
     //simpleShader->cleanup();
     pbrShader->cleanup();
@@ -963,6 +992,7 @@ void Graphics::cleanup() {
     texShader->cleanup();
     skyboxShader->cleanup();
     cylinder2cubemapShader->cleanup();
+    irradianceShader->cleanup();
 
     simpleCbuf->cleanup();
     pbrCbuf->cleanup();
@@ -970,10 +1000,8 @@ void Graphics::cleanup() {
     brightnessCbuf->cleanup();
     tonemapCbuf->cleanup();
 
-    //quadPrim->cleanup();
     screenQuadPrim->cleanup();
     brightQuadPrim->cleanup();
-    //skySpherePrim->cleanup();
     skyboxPrim->cleanup();
 
     for (auto prim : cubemapPrim)
