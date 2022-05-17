@@ -6,14 +6,12 @@
 #include "primitive.h"
 
 
-bool PrimitiveSample::createSphere(std::shared_ptr<Primitive>& prim, float R, bool invDir, bool needTex)
+bool PrimitiveSample::createSphere(std::shared_ptr<Primitive>& prim, float R, bool invDir)
 {
     const int N = 50, M = 50;
     const float PI = 3.14159265359f;
     
     std::array<SimpleVertex, M * N> vertices;
-    // TODO NEED HUGE REFACTORING. CRINGE!!!
-    std::array<TextureVertex, M * N> tvertices;
     std::array<UINT, (N * 2 + 1) * (M - 1)> indices;
 
     // vertices
@@ -30,23 +28,12 @@ bool PrimitiveSample::createSphere(std::shared_ptr<Primitive>& prim, float R, bo
                 y = cosf(theta),
                 z = sinf(theta) * cosf(phi);
 
-            if (!needTex)
-            {
-                vertices[idx].Pos.x = x * R;
-                vertices[idx].Pos.y = y * R;
-                vertices[idx].Pos.z = z * R;
+            vertices[idx].Pos.x = x * R;
+            vertices[idx].Pos.y = y * R;
+            vertices[idx].Pos.z = z * R;
 
-                vertices[idx].Norm = XMFLOAT3(x, y, z);
-                vertices[idx].Color = XMFLOAT4(1.0f, 0, 0, 1.0f);
-            }
-            else
-            {
-                tvertices[idx].Pos.x = x * R;
-                tvertices[idx].Pos.y = y * R;
-                tvertices[idx].Pos.z = z * R;
-
-                tvertices[idx].Tex = XMFLOAT2(phi / (2 * PI), theta / PI);
-            }
+            vertices[idx].Norm = XMFLOAT3(x, y, z);
+            vertices[idx].Color = XMFLOAT4(1.0f, 0, 0, 1.0f);
         }
     }
 
@@ -61,10 +48,7 @@ bool PrimitiveSample::createSphere(std::shared_ptr<Primitive>& prim, float R, bo
         indices[(i + 1) * (N * 2 + 1) - 1] = -1;
     }
 
-    if (!needTex)
-        prim = PrimitiveFactory::create<SimpleVertex>(vertices, indices, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
-    else
-        prim = PrimitiveFactory::create<TextureVertex>(tvertices, indices, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
+    prim = PrimitiveFactory::create<SimpleVertex>(vertices, indices, D3D11_PRIMITIVE_TOPOLOGY_TRIANGLESTRIP);
 
     if (!prim)
         return false;
