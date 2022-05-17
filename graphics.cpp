@@ -769,7 +769,8 @@ bool Graphics::initIrradianceMap()
         });
 
     //"Road_to_MonumentValley_Ref.hdr"
-    if (!makeSRVFromFile("je_gray_park_4k.hdr", skySphereSRV))
+    //"je_gray_park_4k.hdr"
+    if (!makeSRVFromFile("Road_to_MonumentValley_Ref.hdr", skySphereSRV))
         return false;
 
     // Define the input layout
@@ -819,12 +820,19 @@ bool Graphics::initIrradianceMap()
         {XMFLOAT3(0.5, -0.5, -0.5), XMFLOAT3(-0.5, -0.5, -0.5), XMFLOAT3(-0.5, 0.5, -0.5), XMFLOAT3(0.5, 0.5, -0.5)}     // -z
     };
 
+    XMFLOAT3 quadNorm[6] =
+    {
+        XMFLOAT3(1, 0, 0), XMFLOAT3(-1, 0, 0),
+        XMFLOAT3(0, 1, 0), XMFLOAT3(0, -1, 0),
+        XMFLOAT3(0, 0, 1), XMFLOAT3(0, 0, -1)
+    };
+
     for (size_t quad = 0; quad < 6; quad++)
     {
         std::array<SimpleVertex, 4> vertices;
         std::generate(vertices.begin(), vertices.end(),
-            [vertex = 0, quadPos, quad]() mutable {
-            return SimpleVertex{ quadPos[quad][vertex++], XMFLOAT3(0.0f, 0.0f, 0.0f), XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f) };
+            [vertex = 0, quadPos, quadNorm, quad]() mutable {
+            return SimpleVertex{ quadPos[quad][vertex++], quadNorm[quad], XMFLOAT4(0.0f, 0.0f, 0.0f, 1.0f)};
         });
         if (!PrimitiveSample::createQuad<SimpleVertex>(cubemapPrim[quad], vertices))
             return false;

@@ -19,7 +19,7 @@ struct VS_INPUT
 struct VS_OUTPUT
 {
     float4 Pos : SV_POSITION;
-    float3 WorldPos : TEXCOORD;
+    float3 WorldPos : POSITION;
 };
 
 

@@ -19,7 +19,8 @@ struct VS_INPUT
 struct VS_OUTPUT
 {
     float4 Pos : SV_POSITION;
-    float3 TexCoord : TEXCOORD;
+    float3 Norm: NORMAL;
+    float3 TexCoord : POSITION;
 };
 
 
@@ -50,7 +51,7 @@ float4 PS(VS_OUTPUT input) : SV_Target
             float phi = i * (2 * PI / N1);
             float theta = j * (PI / 2 / N2);
 
-            float3 normal = float3(cos(theta) * cos(phi), sin(theta), cos(theta) * sin(phi));
+            float3 normal = normalize(input.TexCoord);
             float3 dir = abs(normal.z) < 0.999 ? float3(0.0, 0.0, 1.0) : float3(1.0, 0.0, 0.0);
             float3 tangent = normalize(cross(dir, normal));
             float3 binormal = cross(normal, tangent);
