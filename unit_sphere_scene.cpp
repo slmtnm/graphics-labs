@@ -14,7 +14,6 @@ void UnitSphereScene::prepareForRender(std::shared_ptr<Graphics>)
 
 void UnitSphereScene::render(std::shared_ptr<Graphics> graphics)
 {
-    // TODO update material in loop
     Graphics::MaterialConstantBuffer mtlCB;
     ZeroMemory(&mtlCB, sizeof(Graphics::MaterialConstantBuffer));
     mtlCB.roughness = 0.5f;
@@ -37,7 +36,7 @@ void UnitSphereScene::render(std::shared_ptr<Graphics> graphics)
 
             mtlCbuf->update(mtlCB);
 
-            spherePrim->render(graphics->getPBRShader());
+            spherePrim->render(graphics->getPBRShader(), graphics->getSamplerState(), graphics->getIrradianceCubeSRV());
         }
     }
     graphics->endEvent();

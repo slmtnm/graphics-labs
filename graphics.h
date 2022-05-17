@@ -87,6 +87,8 @@ public:
     Camera& getCamera();
     ID3D11SamplerState* getSamplerState() const;
 
+    ID3D11ShaderResourceView * getIrradianceCubeSRV() const;
+
     void addUnit(std::shared_ptr<Unit>);
     bool makeSRVFromFile(std::string const &texFileName, ID3D11ShaderResourceView *&srv);
 

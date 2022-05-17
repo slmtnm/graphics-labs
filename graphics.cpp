@@ -907,9 +907,6 @@ void Graphics::render()
     moveCamera();
     renderGUI();
 
-    // TODO for debug
-    buildIrradianceMap();
-
     if (DrawMask == 0)
     {
         setViewport(width, height);
@@ -1109,6 +1106,11 @@ Camera& Graphics::getCamera()
 ID3D11SamplerState* Graphics::getSamplerState() const
 {
     return samplerState;
+}
+
+ID3D11ShaderResourceView* Graphics::getIrradianceCubeSRV() const
+{
+    return irradianceCubeSRV;
 }
 
 void Graphics::addUnit(std::shared_ptr<Unit> unit)

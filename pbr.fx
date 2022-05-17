@@ -1,3 +1,6 @@
+SamplerState ObjSamplerState;
+TextureCube DiffuseIrradianceMap;
+
 //--------------------------------------------------------------------------------------
 // Constant Buffer Variables
 //--------------------------------------------------------------------------------------
@@ -116,6 +119,18 @@ float3 F(float3 n, float3 v)
     return Fval;
 }
 
+float3 ambient(float3 albedo, float3 n, float3 v)
+{
+    float3 Fval = F(n, v);
+    float3 kS = Fval;
+    float3 kD = float3(1.0, 1.0, 1.0) - kS;
+    kD *= 1.0 - metalness;
+    float3 irradiance = DiffuseIrradianceMap.Sample(ObjSamplerState, n).rgb;
+    float3 diffuse = irradiance * albedo;
+    float3 ambient = kD * diffuse;
+    return ambient;
+}
+
 float3 fr(float3 albedo, float3 n, float3 v, float3 l)
 {
     float3 h = normalize((v + l) * 0.5f);
@@ -147,7 +162,8 @@ float4 PS(VS_OUTPUT input) : SV_Target
     // normal
     float3 n = normalize(input.Norm);
 
-    for (uint i = 0; i < (DrawMask == 0 ? 3 : 1); i++) {
+    // point lights
+    for (uint i = 0; i < 0; i++) { //(DrawMask == 0 ? 3 : 1)
         // direction from point to light
         float3 l = normalize(LightPos[i].xyz - input.WorldPos);
         // light color
@@ -159,6 +175,9 @@ float4 PS(VS_OUTPUT input) : SV_Target
 
         resultColor += color;
     }
+
+    // ambient from irradiance map
+    resultColor += ambient(input.Color.rgb, n, v);
 
     return float4(resultColor, input.Color.a);
 }
