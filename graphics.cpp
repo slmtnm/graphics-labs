@@ -770,7 +770,7 @@ bool Graphics::initIrradianceMap()
 
     //"Road_to_MonumentValley_Ref.hdr"
     //"je_gray_park_4k.hdr"
-    if (!makeSRVFromFile("Road_to_MonumentValley_Ref.hdr", skySphereSRV))
+    if (!makeSRVFromFile("je_gray_park_4k.hdr", skySphereSRV))
         return false;
 
     // Define the input layout
